@@ -1,0 +1,12 @@
+{
+  "name": "hr-ai-review",
+  "version": "1.0.0",
+  "description": "HR AI REVIEW - AI-powered CV review web app",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "jspdf": "^4.2.1"
+  }
+}

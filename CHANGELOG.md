@@ -1,0 +1,163 @@
+# CHANGELOG — HR AI REVIEW
+
+> Semua perbaikan dan fitur baru setelah deploy awal.
+
+---
+
+## [v15 — Full switch ke bynara (agnes-2.5-flash)] — 2026-08-23
+
+### Problem
+- Sesuai keputusan, pindah sepenuhnya ke bynara (model `agnes-2.5-flash`) dan hapus Gemini/Google AI Studio.
+- agnes punya knowledge cutoff lama → perlu `DATE_CONTEXT` agar tidak menolak pengalaman 2026.
+
+### Change
+- 🔴 **Hapus seluruh kode Gemini** dari `gas/Code.gs`:
+  - Hapus hardcoded fallback key `AQ.Ab8...` dan base URL `generativelanguage.googleapis.com`
+  - Provider sekarang 100% bynara: `agnes-2.5-flash` (primary) → `agnes-2.0-flash` (fallback)
+  - `BYNARA_API_KEY` diambil dari Script Properties (wajib di-set, tidak ada hardcoded key lagi)
+- 🟢 **Pertahankan `DATE_CONTEXT`** (tahun 2026 = pengalaman nyata/valid) di prompt review & improve — kritis untuk agnes.
+- 🟢 `gas/install-properties.gs.example` diubah ke bynara (`YOUR_BYNARA_API_KEY`).
+- 🟢 `vercel/api/gas-proxy.js` diarahkan ke deployment @HEAD terbaru.
+- 🧹 Hapus deployment stale, fix bug TDZ (`action` dipakai sebelum deklarasi di `doPost`).
+
+### Tests
+- `test/ai.test.js`: primary = bynara `agnes-2.5-flash`, fallback = `agnes-2.0-flash`
+- `test/e2e-full.test.js`: skip condition `BYNARA_API_KEY`
+- `test/frontend.test.js`: assertion placeholder `YOUR_BYNARA_API_KEY`
+- **65/65 test pass** (unit + E2E live via bynara)
+
+---
+
+## [v14.1 — Timeout + reliabilitas] — 2026-08-22
+
+### Change
+- Naikkan `timeoutSeconds` GAS 45 → 55 saat panggilan Gemini (latency 8-30s+), tetap di bawah batas Vercel hobby `maxDuration: 60s` agar proxy tidak terputus lebih dulu
+
+### Deploy
+- GAS version @24 `v14.1-timeout-55s` (deployment live diperbarui)
+
+---
+
+## [v14 — Gemini-only, hapus zyrouter] — 2026-08-22
+
+### Problem
+- v13 menjadikan `zyrouter geminiflash-3.6` sebagai primary provider (proxy key `sk-zyr-...`)
+- Ingin kembali murni ke Google AI Studio (Gemini), hapus total provider zyrouter
+
+### Change
+- 🔴 Hapus seluruh provider & model zyrouter dari `gas/Code.gs` (key `sk-zyr-...`, base URL `api.zyrouter.com`, chain fallback `zyr-3.6`/`zyr-3.5`)
+- 🔴 `callAi()` sekarang murni Gemini:
+  1. Google AI Studio `gemini-3.6-flash` (primary)
+  2. Google AI Studio `gemini-3.5-flash` (fallback)
+- 🔴 Hapus logic `supportsJsonFormat` yang khusus untuk zyrouter (Gemini support `response_format`)
+- 🟢 API key Gemini `***REDACTED_API_KEY***` (Google AI Studio) dipakai sebagai fallback, `GEMINI_API_KEY` dari Script Properties jadi prioritas
+- Bersihkan komentar usang (bynara router) → Gemini
+
+### Tests
+- `test/ai.test.js` diperbarui: primary = Google AI Studio `gemini-3.6-flash`, fallback = `gemini-3.5-flash`
+- 10/10 unit test AI pass
+- Verifikasi langsung key Gemini (HTTP 200 untuk `gemini-3.6-flash` & `gemini-3.5-flash`)
+
+---
+
+## [v9 — Feedback Loop Improve] — 2026-08-22
+
+### Problem
+- Skor sering tidak naik (atau turun) setelah AI perbaiki CV — improve hanya rapikan grammar, tapi skor dinilai dari konten
+- Reviewer tidak konsisten (temperature 0.4 → fluktuasi skor ±5–10 poin antar rescore)
+- Improve tidak tahu rubrik penilaian, menembak di gelap
+- Rescore tidak tahu saran apa yang sudah diterapkan
+
+### Fix
+- **🔴 Rubrik penilaian eksplisit** — reviewer sekarang punya rubrik skor 0-100 dengan kategori (kontak, struktur, pencapaian, ATS, panjang, grammar)
+- **🔴 Permission matrix di improve** — BOLEH rewrite struktur, tambah section, bullet points, variasi keyword ATS; DILARANG hapus info atau halusinasi konten
+- **🔴 Rescore aware of improvements** — reviewer terima `appliedSuggestions[]` agar tahu saran apa yang sudah diterapkan dan nilai lebih tinggi
+- **🔴 Improve terima full review context** — score + suggestions + weaknesses + missing + atsKeywords, bukan hanya suggestions
+- **🟠 Temperature**: review turun 0.4 → 0.2 (konsisten), improve naik 0.3 → 0.6 (berani rewrite struktur)
+- **🟠 Score delta display** — frontend tampilkan "48 → 62 (+14 poin)" setelah rescore
+- **🟠 Actionable checklist** — suggestions + weaknesses digabung jadi checklist yang actionable di improve prompt
+
+### Result (test dengan CV dummy buruk)
+- Skor awal: 48 → Skor setelah improve: 62 → **Delta: +14 poin** ✅
+
+### Changed
+- `buildSystemPrompt(appliedSuggestions)` — terima parameter baru untuk mode rescore
+- `buildImprovePrompt(cvText, jobDesc, reviewContext)` — signature berubah, terima object
+- `callAiApi(cvText, jobDesc, appliedSuggestions)` — forward ke system prompt
+- `callImproveApi(cvText, jobDesc, reviewContext)` — forward ke improve prompt
+- `handleReview` — terima `appliedSuggestions` dari body
+- `handleImprove` — terima `score`, `weaknesses` dari body
+- Frontend: `runImprove` kirim full review context, `runRescore` kirim `appliedSuggestions`
+- Frontend: `renderScoreDelta()` tampilkan perbandingan skor
+- Frontend: HTML tambah `<div id="score-delta">`, CSS `.score-delta`
+- Proxy: `GAS_URL` update ke deployment v9
+
+### Tests
+- 59 unit test (semua pass)
+- Test `buildSystemPrompt` cek rubrik + rescore context
+- Test `buildImprovePrompt` cek permission matrix + rubrik
+- Test `callAiApi` cek temperature 0.2
+- Test `callImproveApi` cek temperature 0.6
+- `test/feedback-loop-runner.js` — E2E test: review → improve → rescore
+- `test/test-new-deploy.js` — E2E test langsung ke GAS
+- `test/dummy-cv-buruk-text.txt` — CV dummy dengan kelemahan (test improvement)
+- `test/gen-dummy-cv-buruk.js` — generator PDF CV buruk
+
+---
+
+## [v8 — Security Audit] — 2026-08-20
+
+### Security
+- **🔴 Origin validation** — backend GAS sekarang menolak request dari domain yang tidak di-whitelist (`ALLOWED_ORIGINS`)
+- **🔴 Prompt injection protection** — user content (CV, jobDesc) dibungkus tag `<CV>` / `<JOB_DESC>` + instruksi eksplisit untuk abaikan perintah di dalamnya
+- **🟠 Job description length limit** — maksimal 5.000 karakter (sebelumnya tidak dibatasi)
+- **🟠 CSP header** — `vercel.json` menambah Content-Security-Policy, X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- **🟠 XSS hardening** — `renderHistory()` dimigrasikan dari `innerHTML` ke `textContent`/`createElement`
+- **🟡 Cleanup secrets dari git** — `install-properties.gs` di-untrack (rename `.example`), `appsscript.json.bak` dihapus
+- **🟡 .gitignore diperketat** — `.env*`, `*.bak`, `install-properties.gs` di-ignore
+
+### Changed
+- Frontend kirim `origin` parameter ke backend untuk validasi
+- Magic number `326.7` di-score ring diganti konstanta `SCORE_RING_CIRCUMFERENCE`
+- `escapeHtml()` dihapus (tidak terpakai setelah migrasi `textContent`)
+- `lastHistoryId` dead code dihapus
+
+### Tests
+- +5 test baru: jobDesc length, origin whitelist (allow/deny/no-origin), prompt injection delimiter
+- Test prompt injection cek tag `<CV>` + instruksi anti-injection
+- Total: 56 test (semua pass)
+
+---
+
+## [v7] — 2026-08-20
+
+### Added
+- **✨ Perbaiki CV dengan AI** — setelah review, AI bisa memperbaiki CV berdasarkan saran yang diberikan
+- **📊 Skor Ulang CV Baru** — tombol untuk mereview ulang CV yang sudah diperbaiki, bandingkan skor sebelum & sesudah
+- **⚠️ Konfirmasi sebelum panggil AI** — `confirm()` sebelum improve/rescore agar user sadar konsumsi kuota API
+- **📄 PDF fit to original page** — download PDF perbaikan otomatis menyesuaikan jumlah halaman dengan CV asli (font size dinamis 11→8)
+
+### Changed
+- **Temperature improve** turun dari `0.6` → `0.3` (lebih konservatif, tidak rewrite total)
+- **Prompt improve diperketat** — larangan halusinasi, boilerplate, konten palsu; instruksi "perubahan MINIMAL"
+- **Prompt improve diperkaya** — sekarang menyertakan `missing[]` + `atsKeywords[]` dari review
+- **Hasil perbaikan disimpan ke riwayat** — `improvedCv` di localStorage, bisa dilihat kembali
+
+### Fixed
+- **Bug: history + improve mismatch** — `cvText` & `jobDesc` sekarang disimpan di history item, klik riwayat → improve pakai CV yang benar
+- **Trustline palsu** — hapus "Skor rata-rata 4.4/5" (belum ada data)
+- **Pesan scan CV** — lebih jelas: "CV mungkin berupa scan/foto tanpa teks"
+- **Rate limit** — maks 30 review/jam (global), otomatis reset tiap jam
+- **Max CV text** — tolak CV > 20.000 karakter
+- **API key leak** — hapus hardcoded API key dari `install-properties.gs`
+
+---
+
+## [v1] — 2026-08-20
+
+### Added
+- Backend GAS: review CV via bynara `agnes-2.5-flash`
+- Frontend Vercel: upload PDF/TXT, drag & drop, score ring, format check
+- Riwayat review di localStorage (max 20 item)
+- PWA: manifest, service worker, icons
+- 51 test (routing, AI, mock, frontend)

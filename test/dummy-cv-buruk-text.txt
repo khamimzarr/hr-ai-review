@@ -1,0 +1,25 @@
+Ahmad Fauzi
+Email: ahmad.fauzi24@email.com
+Bandung, Indonesia
+
+Saya lulusan teknik informatika yang sedang mencari pekerjaan sebagai web developer. Saya punya pengalaman di bidang web development dan pernah kerja di beberapa perusahaan.
+
+PENGALAMAN
+
+Software Developer di PT Maju Jaya
+2020 - sekarang
+Saya mengerjakan pembuatan website untuk klien perusahaan. Menggunakan HTML CSS dan Javascript. Saya juga bantu maintenance server dan database. Kadang kadang saya juga design UI untuk aplikasi mobile.
+
+Junior Programmer di PT Sejahtera
+2018 - 2020
+Disini saya belajar banyak tentang pemrograman. Saya buat aplikasi web pakai PHP dan MySQL. Saya juga ikut meeting dengan klien untuk bahas requirement aplikasi. Terus saya bantu testing aplikasi sebelum di launch.
+
+PENDIDIKAN
+
+S1 Informatika di Universitas Komputer Indonesia
+2014 - 2018
+IPK 3.5
+
+SKILL
+
+HTML, CSS, Javascript, PHP, MySQL, Photoshop, Word, Excel

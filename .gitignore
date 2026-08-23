@@ -1,0 +1,25 @@
+node_modules/
+.clasp.json
+.clasprc.json
+.claspignore
+.DS_Store
+
+# Secrets
+.env
+.env.*
+.env.local
+
+# Backups
+*.bak
+*.bak.*
+
+# Install helper (berisi API key jika dijalankan)
+gas/install-properties.gs
+gas/_temp-set-agnes.gs
+
+# Diagnostics / probe sementara
+test/api_tests/
+test/*_probe.json
+test/*_diag.json
+api_tests/
+AUDIT-REPORT.md

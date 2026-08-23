@@ -1,0 +1,32 @@
+Budi Santoso
+Email: budi.santoso@email.com
+Telepon: 0812-3456-7890
+LinkedIn: linkedin.com/in/budisantoso
+Jakarta, Indonesia
+
+RINGKASAN PROFIL
+Software Engineer dengan 5 tahun pengalaman dalam pengembangan web full-stack. Berpengalaman dalam JavaScript, React, Node.js, dan manajemen database. Terbiasa bekerja dalam tim Agile dan memiliki kemampuan problem-solving yang kuat.
+
+PENGALAMAN KERJA
+Senior Frontend Developer — PT Tech Nusantara
+Januari 2022 - Sekarang
+Memimpin pengembangan frontend untuk platform e-commerce dengan 100rb+ pengguna harian. Mengimplementasikan React, TypeScript, dan Webpack. Meningkatkan performance loading 40% melalui code splitting dan lazy loading. Mentor untuk 3 junior developer.
+
+Full Stack Developer — PT Digital Solusi
+Juni 2019 - Desember 2021
+Mengembangkan dan maintenance 5+ aplikasi web menggunakan Node.js, Express, PostgreSQL, dan Vue.js. Membangun REST API yang melayani 50rb+ request per hari. Implementasi CI/CD pipeline dengan Docker dan GitLab.
+
+PENDIDIKAN
+S1 Teknik Informatika — Universitas Indonesia
+2015 - 2019 — IPK 3.75/4.00
+
+SKILL & KOMPETENSI
+JavaScript (ES6+), TypeScript, React, Vue.js, Node.js, Express
+PostgreSQL, MongoDB, Redis, MySQL
+Docker, Git, CI/CD, AWS (EC2, S3, Lambda)
+REST API, GraphQL, WebSockets
+Agile/Scrum, Test-Driven Development, Code Review
+
+SERTIFIKASI
+AWS Certified Developer Associate (2023)
+Google Cloud Professional Cloud Architect (2022)
