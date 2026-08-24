@@ -154,6 +154,14 @@ test('style.css punya animasi hasil review (listIn, scorePop, deltaPulse)', () =
   assert.ok(CSS.includes('@keyframes resultFade'), 'resultFade missing');
 });
 
+test('style.css hero punya animasi floating & shine', () => {
+  assert.ok(CSS.includes('@keyframes floatSlow'), 'floatSlow missing');
+  assert.ok(CSS.includes('.hero-visual'), 'float target missing');
+  assert.ok(CSS.includes('@keyframes shine'), 'shine keyframes missing');
+  assert.ok(CSS.includes('animation: floatSlow 5s'), 'float durasi missing');
+  assert.ok(CSS.includes('animation: shine 4.5s'), 'shine durasi missing');
+});
+
 test('app.js punya scroll-reveal & score count-up', () => {
   assert.ok(APP_JS.includes('initScrollReveal'), 'initScrollReveal missing');
   assert.ok(APP_JS.includes('IntersectionObserver'), 'IntersectionObserver missing');

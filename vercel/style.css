@@ -329,6 +329,40 @@ a { color: inherit; text-decoration: none; }
 .resume-card { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .resume-card:hover { transform: rotate(0deg) scale(1.04); }
 
+/* ---------- Floating: kartu CV di hero mengambang terus ---------- */
+.hero-visual {
+  animation: floatSlow 5s ease-in-out infinite;
+}
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+/* Saat kartu di-hover, pause floating biar interaksi stabil */
+.hero-visual:hover { animation-play-state: paused; }
+
+/* ---------- Shine: kilau melintas di judul & tombol ---------- */
+.hero-title span.accent,
+.hero .btn-primary {
+  position: relative;
+  overflow: hidden;
+}
+.hero-title span.accent::after,
+.hero .btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -120%;
+  width: 50%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.55), transparent);
+  transform: skewX(-20deg);
+  animation: shine 4.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes shine {
+  0% { left: -120%; }
+  55% { left: 130%; }
+  100% { left: 130%; }
+}
+
 /* Chips & tags pop on hover */
 .chip, .tag {
   transition: transform 0.2s cubic-bezier(0.3, 1.5, 0.6, 1);
