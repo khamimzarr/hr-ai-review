@@ -122,3 +122,42 @@ test('icon SVG files exist', () => {
   assert.ok(fs.existsSync(path.join(VERCEL, 'icon-192.svg')));
   assert.ok(fs.existsSync(path.join(VERCEL, 'icon-512.svg')));
 });
+// ---------- Animasi (upgrade playful) ----------
+const CSS = css;
+
+test('style.css punya sistem scroll-reveal (.reveal)', () => {
+  assert.ok(CSS.includes('.reveal'), 'class .reveal missing');
+  assert.ok(CSS.includes('IntersectionObserver') === false, 'reveal harus pure CSS/JS, bukan di css'); // sanity: IntersectionObserver dipakai di js
+  assert.ok(CSS.includes('prefers-reduced-motion'), 'diharuskan dukungan reduced motion');
+});
+
+test('style.css punya micro-interaction hover (transform bounce)', () => {
+  assert.ok(CSS.includes('translateY(-2px)'), 'btn lift hover missing');
+  assert.ok(CSS.includes('scale(1.08)'), 'chip/tag pop-on-hover missing');
+  assert.ok(CSS.includes('@keyframes wiggle'), 'dropzone wiggle missing');
+  assert.ok(CSS.includes('@keyframes ripple'), 'ripple keyframes missing');
+});
+
+test('style.css tetap flat (tanpa box-shadow string)', () => {
+  assert.ok(!CSS.includes('box-shadow'), 'box-shadow dilarang di design system');
+});
+
+test('index.html memakai class .reveal di hero & section', () => {
+  assert.ok(html.includes('class="hero-title reveal'), 'hero title reveal missing');
+  assert.ok(html.includes('reveal-s'), 'stagger class missing');
+});
+
+test('style.css punya animasi hasil review (listIn, scorePop, deltaPulse)', () => {
+  assert.ok(CSS.includes('@keyframes listIn'), 'listIn missing');
+  assert.ok(CSS.includes('@keyframes scorePop'), 'scorePop missing');
+  assert.ok(CSS.includes('@keyframes deltaPulse'), 'deltaPulse missing');
+  assert.ok(CSS.includes('@keyframes resultFade'), 'resultFade missing');
+});
+
+test('app.js punya scroll-reveal & score count-up', () => {
+  assert.ok(APP_JS.includes('initScrollReveal'), 'initScrollReveal missing');
+  assert.ok(APP_JS.includes('IntersectionObserver'), 'IntersectionObserver missing');
+  assert.ok(APP_JS.includes('requestAnimationFrame'), 'count-up rAF missing');
+  assert.ok(APP_JS.includes("(prefers-reduced-motion: reduce)"), 'reduced motion guard missing');
+  assert.ok(APP_JS.includes('attachRipple'), 'attachRipple missing');
+});

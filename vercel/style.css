@@ -218,3 +218,180 @@ a { color: inherit; text-decoration: none; }
   .steps { grid-template-columns: 1fr; }
   .nav-links { display: none; }
 }
+/* ==========================================================
+   ANIMATION SYSTEM — playful & lively
+   (pure CSS transforms/opacity — flat design system)
+   ========================================================== */
+
+/* ---------- 1. Scroll-reveal (A) ---------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px) scale(0.985);
+  transition:
+    opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: opacity, transform;
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: none;
+}
+/* Stagger helpers — elemen berurutan naik satu-satu */
+.reveal-s1 { transition-delay: 0.05s; }
+.reveal-s2 { transition-delay: 0.12s; }
+.reveal-s3 { transition-delay: 0.19s; }
+.reveal-s4 { transition-delay: 0.26s; }
+.reveal-s5 { transition-delay: 0.33s; }
+.reveal-s6 { transition-delay: 0.40s; }
+.reveal-s7 { transition-delay: 0.47s; }
+.reveal-s8 { transition-delay: 0.54s; }
+/* Variasi arah masuk */
+.reveal-left { transform: translateX(-32px) scale(0.985); }
+.reveal-left.revealed { transform: none; }
+.reveal-right { transform: translateX(32px) scale(0.985); }
+.reveal-right.revealed { transform: none; }
+.reveal-zoom { transform: scale(0.8); }
+.reveal-zoom.revealed { transform: none; }
+
+/* ---------- 2. Micro-interaction & hover (B) ---------- */
+.btn {
+  transition: background 0.15s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+.btn:hover:not(:disabled) { transform: translateY(-2px) scale(1.02); }
+.btn:active:not(:disabled) { transform: translateY(0) scale(0.96); }
+/* Ripple effect saat klik */
+.btn .ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(0);
+  animation: ripple 0.55s ease-out forwards;
+  pointer-events: none;
+}
+@keyframes ripple {
+  to { transform: scale(3); opacity: 0; }
+}
+
+.btn-ghost { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.btn-ghost:hover { transform: translateX(3px); }
+
+.brand span {
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.brand:hover span { transform: scale(1.12) rotate(-4deg); }
+
+.nav-links a {
+  position: relative;
+  transition: color 0.2s;
+}
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: -4px;
+  width: 100%; height: 2px;
+  background: var(--color-signal-blue);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.nav-links a:hover::after { transform: scaleX(1); }
+
+/* Dropzone playful */
+.dropzone .dz-icon {
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.dropzone:hover .dz-icon,
+.dropzone.dragover .dz-icon {
+  transform: translateY(-6px) scale(1.2);
+  animation: wiggle 0.4s ease-in-out;
+}
+@keyframes wiggle {
+  0% { transform: translateY(-6px) rotate(0deg); }
+  25% { transform: translateY(-6px) rotate(-8deg); }
+  50% { transform: translateY(-6px) rotate(8deg); }
+  75% { transform: translateY(-6px) rotate(-5deg); }
+  100% { transform: translateY(-6px) rotate(0deg); }
+}
+.dropzone { transition: border-color 0.15s, background 0.15s, transform 0.2s cubic-bezier(0.3, 1.5, 0.6, 1); }
+.dropzone:hover, .dropzone.dragover { transform: translateY(-3px); }
+
+/* Cards playful hover */
+.card, .history-item, .step, .upload-card {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s;
+}
+.history-item:hover { transform: translateY(-4px) scale(1.015); }
+.step:hover { transform: translateY(-4px) scale(1.015); }
+.resume-card { transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.resume-card:hover { transform: rotate(0deg) scale(1.04); }
+
+/* Chips & tags pop on hover */
+.chip, .tag {
+  transition: transform 0.2s cubic-bezier(0.3, 1.5, 0.6, 1);
+  display: inline-block;
+}
+.chip:hover, .tag:hover { transform: scale(1.08) rotate(-2deg); }
+
+/* ---------- 3. Result review animations (C) ---------- */
+/* Score number count-up handled in JS; give it a pop at end */
+.score-num.score-pop { animation: scorePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes scorePop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* Staggered list reveal */
+.check-list li, .x-list li, .arrow-list li, .tag, #format-list li {
+  opacity: 0;
+  transform: translateX(-12px);
+  animation: listIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes listIn {
+  to { opacity: 1; transform: none; }
+}
+#format-list li:nth-child(1), .check-list li:nth-child(1), .x-list li:nth-child(1), .arrow-list li:nth-child(1) { animation-delay: 0.05s; }
+#format-list li:nth-child(2), .check-list li:nth-child(2), .x-list li:nth-child(2), .arrow-list li:nth-child(2) { animation-delay: 0.12s; }
+#format-list li:nth-child(3), .check-list li:nth-child(3), .x-list li:nth-child(3), .arrow-list li:nth-child(3) { animation-delay: 0.19s; }
+#format-list li:nth-child(4), .check-list li:nth-child(4), .x-list li:nth-child(4), .arrow-list li:nth-child(4) { animation-delay: 0.26s; }
+#format-list li:nth-child(5), .check-list li:nth-child(5), .x-list li:nth-child(5), .arrow-list li:nth-child(5) { animation-delay: 0.33s; }
+#format-list li:nth-child(6), .check-list li:nth-child(6), .x-list li:nth-child(6), .arrow-list li:nth-child(6) { animation-delay: 0.40s; }
+.tag:nth-child(1n) { animation-delay: calc(0.05s + (var(--tag-i, 0) * 0.06s)); }
+
+/* Score delta highlight */
+.score-delta { animation: deltaPulse 0.8s ease; }
+@keyframes deltaPulse {
+  0% { transform: scale(0.9); opacity: 0; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Result section fades in */
+#result-section:not([hidden]) { animation: resultFade 0.5s ease; }
+@keyframes resultFade {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- 4. Loading state (D) ---------- */
+.btn:has(.spinner:not([hidden])) { animation: btnPulse 1s ease-in-out infinite; }
+@keyframes btnPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+/* ---------- 5. Accessibility & safety ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal { opacity: 1; transform: none; }
+}

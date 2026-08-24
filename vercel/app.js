@@ -169,9 +169,40 @@ els.reviewBtn.addEventListener('click', runReview);
 // ---------- Render ----------
 function renderReview(review) {
   const score = Math.max(0, Math.min(100, Math.round(review.score || 0)));
-  els.scoreNum.textContent = score;
-  els.scoreRingFg.style.strokeDashoffset = SCORE_RING_CIRCUMFERENCE * (1 - score / 100);
-  els.roleMatch.textContent = (review.roleMatch || 0) + '%';
+  const roleMatch = review.roleMatch || 0;
+
+  // Animasi skor: count-up dari 0 ke nilai akhir (kecuali prefers-reduced-motion)
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reducedMotion) {
+    els.scoreNum.textContent = score;
+    els.scoreRingFg.style.strokeDashoffset = SCORE_RING_CIRCUMFERENCE * (1 - score / 100);
+    els.roleMatch.textContent = roleMatch + '%';
+  } else {
+    els.scoreNum.style.opacity = '0';
+    els.scoreNum.textContent = '0';
+    els.roleMatch.textContent = '0%';
+    const start = performance.now();
+    const dur = 900;
+    const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+    const tick = (now) => {
+      const p = Math.min(1, (now - start) / dur);
+      const eased = easeOut(p);
+      const v = Math.round(score * eased);
+      els.scoreNum.textContent = v;
+      els.scoreRingFg.style.strokeDashoffset = SCORE_RING_CIRCUMFERENCE * (1 - (v / 100));
+      els.roleMatch.textContent = Math.round(roleMatch * eased) + '%';
+      if (p < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        els.scoreNum.style.opacity = '1';
+        els.scoreNum.classList.remove('score-pop');
+        // force reflow utk replay animasi pop
+        void els.scoreNum.offsetWidth;
+        els.scoreNum.classList.add('score-pop');
+      }
+    };
+    requestAnimationFrame(tick);
+  }
 
   // Format check
   const labels = {
@@ -211,11 +242,12 @@ function renderReview(review) {
   fillList(els.suggestionsList, review.suggestions || []);
   fillList(els.missingList, review.missing || []);
 
-  // ATS tags
+  // ATS tags (dengan stagger pop-in via --tag-i)
   els.atsTags.innerHTML = '';
-  (review.atsKeywords || []).forEach((kw) => {
+  (review.atsKeywords || []).forEach((kw, i) => {
     const span = document.createElement('span');
     span.className = 'tag';
+    span.style.setProperty('--tag-i', i);
     span.textContent = kw;
     els.atsTags.appendChild(span);
   });
@@ -290,9 +322,11 @@ function renderHistory() {
   els.historyList.innerHTML = '';
   els.historyEmpty.hidden = history.length > 0;
 
-  history.forEach((item) => {
+  history.forEach((item, idx) => {
     const div = document.createElement('div');
-    div.className = 'history-item';
+    div.className = 'history-item reveal';
+    const stagger = Math.min(idx, 8) + 1;
+    div.classList.add('reveal-s' + stagger);
 
     // Tombol hapus
     const delBtn = document.createElement('button');
@@ -639,8 +673,62 @@ function showToast(msg) {
   toastTimer = setTimeout(() => { els.toast.hidden = true; }, 3000);
 }
 
+// ---------- Scroll-reveal (IntersectionObserver) ----------
+function initScrollReveal() {
+  const elsToReveal = document.querySelectorAll('.reveal');
+  if (!('IntersectionObserver' in window)) {
+    elsToReveal.forEach((el) => el.classList.add('revealed'));
+    return;
+  }
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('revealed');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+  // Elemen statis di halaman di-observasi; elemen hasil/history di-reveal otomatis saat tampil
+  elsToReveal.forEach((el) => {
+    const staticOnPage = el.closest('#result-section') === null && el.closest('#history-list') === null;
+    if (staticOnPage) io.observe(el);
+  });
+
+  // Elemen yang berada dalam container hidden (result-section) jangan menunggu scroll —
+  // diamati terutama karena selalu tampil; history diobserve juga biar animasi saat muncul.
+  if (!reducedMotion) {
+    elsToReveal.forEach((el) => {
+      const dynamic = el.closest('#result-section') || el.closest('#history-list');
+      if (dynamic) io.observe(el);
+    });
+  } else {
+    elsToReveal.forEach((el) => el.classList.add('revealed'));
+  }
+}
+
+// Ripple effect untuk tombol btn
+function attachRipple() {
+  document.querySelectorAll('.btn').forEach((btn) => {
+    btn.addEventListener('click', function onBtnClick(e) {
+      const rect = btn.getBoundingClientRect();
+      const ripple = document.createElement('span');
+      const size = Math.max(rect.width, rect.height);
+      ripple.className = 'ripple';
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      btn.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+    });
+  });
+}
+
 // ---------- Init ----------
 renderHistory();
+initScrollReveal();
+attachRipple();
 
 // PWA: service worker registration
 if ('serviceWorker' in navigator) {
