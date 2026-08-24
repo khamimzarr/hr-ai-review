@@ -162,6 +162,35 @@ test('style.css hero punya animasi floating & shine', () => {
   assert.ok(CSS.includes('animation: shine 4.5s'), 'shine durasi missing');
 });
 
+test('style.css navbar punya progress bar', () => {
+  assert.ok(CSS.includes('.nav-progress'), 'nav-progress css missing');
+  assert.ok(CSS.includes('background: linear-gradient(90deg, var(--color-signal-blue), var(--color-iris))'), 'progress gradient missing');
+});
+
+test('style.css dropzone punya marching-ants + bounce + dz-file slide', () => {
+  assert.ok(CSS.includes('@keyframes antsMove'), 'antsMove missing');
+  assert.ok(CSS.includes('.dropzone.dragover { animation: dropBounce'), 'dropBounce wiring missing');
+  assert.ok(CSS.includes('@keyframes dropBounce'), 'dropBounce keyframes missing');
+  assert.ok(CSS.includes('.dz-file:not(:empty)'), 'dz-file slide-in missing');
+});
+
+test('style.css history tilt-on-hover + step-num pulse', () => {
+  assert.ok(CSS.includes('.history-item:hover .h-score'), 'history score pulse missing');
+  assert.ok(CSS.includes('@keyframes stepPulse'), 'stepPulse missing');
+  assert.ok(CSS.includes('.step-num'), 'step-num target missing');
+});
+
+test('index.html punya nav-progress & footer reveal', () => {
+  assert.ok(html.includes('id="nav-progress"'), 'nav-progress element missing');
+  assert.ok(html.includes('nav-progress'), 'nav progress html missing');
+  assert.ok(html.includes('footer-inner reveal'), 'footer reveal missing');
+});
+
+test('app.js punya initScrollProgress', () => {
+  assert.ok(APP_JS.includes('initScrollProgress'), 'initScrollProgress missing');
+  assert.ok(APP_JS.includes('scrollY'), 'scroll progress uses scrollY');
+});
+
 test('app.js punya scroll-reveal & score count-up', () => {
   assert.ok(APP_JS.includes('initScrollReveal'), 'initScrollReveal missing');
   assert.ok(APP_JS.includes('IntersectionObserver'), 'IntersectionObserver missing');

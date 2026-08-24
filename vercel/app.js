@@ -725,10 +725,27 @@ function attachRipple() {
   });
 }
 
+// Navbar scroll progress bar
+function initScrollProgress() {
+  const bar = $('nav-progress');
+  if (!bar) return;
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const update = () => {
+    const doc = document.documentElement;
+    const total = doc.scrollHeight - doc.clientHeight;
+    const pct = total > 0 ? (window.scrollY / total) * 100 : 0;
+    bar.style.width = reducedMotion ? '0%' : pct + '%';
+  };
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+  update();
+}
+
 // ---------- Init ----------
 renderHistory();
 initScrollReveal();
 attachRipple();
+initScrollProgress();
 
 // PWA: service worker registration
 if ('serviceWorker' in navigator) {
