@@ -60,7 +60,7 @@ test('parseAiResponse melempar error untuk non-JSON', () => {
   assert.throws(() => Code.parseAiResponse('maaf, tidak bisa'), /JSON/i);
 });
 
-test('callAiApi mengirim request ke bynara agnes-2.5-flash sebagai primary provider', () => {
+test('callAiApi mengirim request ke bynara gemini-3.8-flash-high sebagai primary provider', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
   PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'test-key');
@@ -73,7 +73,7 @@ test('callAiApi mengirim request ke bynara agnes-2.5-flash sebagai primary provi
   // bynara router adalah primary
   assert.ok(call.url.includes('router.bynara.id'), 'harus pakai bynara router sebagai primary');
   const payload = JSON.parse(call.options.payload);
-  assert.strictEqual(payload.model, 'agnes-2.5-flash');
+  assert.strictEqual(payload.model, 'gemini-3.8-flash-high');
   assert.strictEqual(payload.temperature, 0.2, 'review harus temperature 0.2 (konsisten)');
   assert.strictEqual(payload.stream, false);
   assert.ok(payload.messages[0].role === 'system');
@@ -81,11 +81,11 @@ test('callAiApi mengirim request ke bynara agnes-2.5-flash sebagai primary provi
   assert.strictEqual(review.score, 90);
 });
 
-test('callAiApi fallback ke agnes-2.0-flash jika 2.5 gagal', () => {
+test('callAiApi fallback ke agnes-2.5-flash jika gemini-3.8-flash-high gagal', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
   PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'test-key');
-  // agnes 2.5 gagal, agnes 2.0 sukses
+  // gemini-3.8-flash-high gagal, agnes 2.5 sukses
   UrlFetchApp._setResponse(500, 'Internal Server Error');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: '{"score":50,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":50}' } }]
@@ -94,6 +94,6 @@ test('callAiApi fallback ke agnes-2.0-flash jika 2.5 gagal', () => {
   const call = UrlFetchApp._getLastCall();
   assert.ok(call.url.includes('router.bynara.id'), 'harus pakai bynara router');
   const payload = JSON.parse(call.options.payload);
-  assert.strictEqual(payload.model, 'agnes-2.0-flash', 'harus pakai agnes-2.0-flash sebagai fallback');
+  assert.strictEqual(payload.model, 'agnes-2.5-flash', 'harus pakai agnes-2.5-flash sebagai fallback');
   assert.strictEqual(review.score, 50);
 });

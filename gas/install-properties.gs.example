@@ -3,7 +3,7 @@
 // Ganti YOUR_BYNARA_API_KEY dengan key dari ~/.pi/agent/models.json (provider bynara)
 function installProperties() {
   const props = PropertiesService.getScriptProperties();
-  // Primary provider: bynara router (agnes-2.5-flash)
+  // Primary provider: bynara router (gemini-3.8-flash-high)
   props.setProperty('BYNARA_API_KEY', 'YOUR_BYNARA_API_KEY');
   props.setProperty('BYNARA_BASE_URL', 'https://router.bynara.id/v1');
   Logger.log('BYNARA_API_KEY terpasang.');

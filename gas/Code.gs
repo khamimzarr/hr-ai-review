@@ -1,6 +1,6 @@
 // HR AI REVIEW — Backend GAS
 // Endpoint: doGet (health), doPost (action=review)
-// AI: bynara router (OpenAI-compatible), model agnes-2.5-flash
+// AI: bynara router (OpenAI-compatible), model gemini-3.8-flash-high
 
 // ---------- Temperature Config ----------
 // Review: 0.2 (konsisten, rubrik scoring ketat — hindari fluktuasi skor antar rescore)
@@ -190,7 +190,7 @@ function buildImprovePrompt(cvText, jobDesc, reviewContext) {
 }
 
 // ---------- AI Provider Helper (bynara router) ----------
-// Primary: bynara agnes-2.5-flash → bynara agnes-2.0-flash (fallback)
+// Primary: bynara gemini-3.8-flash-high → bynara agnes-2.5-flash (fallback)
 function callAi(messages, temperature, useJsonFormat) {
   var props = PropertiesService.getScriptProperties();
   var bynaraKey = props.getProperty('BYNARA_API_KEY');
@@ -245,15 +245,15 @@ function callAi(messages, temperature, useJsonFormat) {
 
   var result;
 
-  // 1. bynara agnes-2.5-flash (primary)
+  // 1. bynara gemini-3.8-flash-high (primary)
+  result = tryProvider('gemini-3.8-flash-high', bynaraBase, bynaraKey, 'gemini-3.8-flash-high');
+  if (result) return result;
+
+  // 2. bynara agnes-2.5-flash (fallback)
   result = tryProvider('agnes-2.5', bynaraBase, bynaraKey, 'agnes-2.5-flash');
   if (result) return result;
 
-  // 2. bynara agnes-2.0-flash (fallback)
-  result = tryProvider('agnes-2.0', bynaraBase, bynaraKey, 'agnes-2.0-flash');
-  if (result) return result;
-
-  throw new Error('Bynara/Agnes API gagal. ' + errors.join(' | '));
+  throw new Error('Bynara API gagal. ' + errors.join(' | '));
 }
 
 function callImproveApi(cvText, jobDesc, reviewContext) {

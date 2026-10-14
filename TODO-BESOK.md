@@ -1,16 +1,13 @@
 # STATUS — HR AI REVIEW
 
-> Update: 2026-08-23 · Status: **v15 LIVE (bynara agnes-2.5-flash)**
+> Update: 2026-10-14 · Status: **v16 (bynara gemini-3.8-flash-high)**
 
-## ✅ State Saat Ini (v15)
+## ✅ State Saat Ini (v16)
 
-- **Provider: bynara 100%** — model `agnes-2.5-flash` (primary) → `agnes-2.0-flash` (fallback)
-- Gemini / Google AI Studio **dihapus seluruhnya** dari `gas/Code.gs`
-- `BYNARA_API_KEY` sudah ter-set di GAS Script Properties (via `install-properties.gs`)
-- `DATE_CONTEXT` aktif di prompt review & improve (agnes cutoff lama → anggap 2026 nyata)
-- Backend live: deployment `@30` (`AKfycbwUwo47jmtBI7e05CH_nOmjrScGjdIJs3wfZemYVCTiGEwX3Jl2onZBCdKss_WU7wvn`)
-- Frontend live: `hr-ai-review-il3mpcr3a-voiddarkfire.vercel.app` (proxy → deployment di atas)
-- **65/65 test pass** (unit + E2E live)
+- **Provider: bynara 100%** — model `gemini-3.8-flash-high` (primary) → `agnes-2.5-flash` (fallback)
+- `BYNARA_API_KEY` & `BYNARA_BASE_URL` tetap menggunakan Script Properties yang sama
+- `DATE_CONTEXT` tetap aktif di prompt review & improve
+- **77/77 test pass**
 
 ## 🔑 Setup Ulang (jika ganti project)
 

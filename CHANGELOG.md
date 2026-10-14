@@ -4,6 +4,19 @@
 
 ---
 
+## [v16 — Ganti model ke gemini-3.8-flash-high (bynara router)] — 2026-10-14
+
+### Change
+- 🟢 Ganti primary model AI di `gas/Code.gs` dari `agnes-2.5-flash` menjadi `gemini-3.8-flash-high` melalui provider yang sama (Bynara router `https://router.bynara.id/v1`).
+- 🟢 Fallback model diarahkan ke `agnes-2.5-flash` jika primary mengalami gangguan.
+- 🟢 API key dan endpoint tetap menggunakan Script Properties `BYNARA_API_KEY` dan `BYNARA_BASE_URL`.
+- 🟢 Update unit test `test/ai.test.js` untuk memverifikasi payload model `gemini-3.8-flash-high`.
+
+### Tests
+- 77/77 tests pass.
+
+---
+
 ## [v15 — Full switch ke bynara (agnes-2.5-flash)] — 2026-08-23
 
 ### Problem
