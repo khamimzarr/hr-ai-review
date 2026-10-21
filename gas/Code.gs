@@ -219,20 +219,49 @@ function buildImprovePrompt(cvText, jobDesc, reviewContext) {
 // ---------- AI Provider Helper (agnes apihub) ----------
 // Primary: agnes-3.0-flash → agnes-2.5-flash (fallback), endpoint apihub.agnes-ai.com
 //
-// Retry policy: 429 / 5xx / timeout / response kosong diulang maks 3x dengan backoff
-// 1.5s lalu 3s. Dibatasi AI_BUDGET_MS supaya total kerja tetap di bawah
-// timeoutSeconds GAS (55s) dan maxDuration Vercel (60s).
+// Retry policy: 429 / 5xx / response kosong diulang maks 3x dengan backoff 1.5s lalu 3s.
+// Timeout TIDAK diulang di model yang sama — langsung lempar ke provider berikutnya.
 //
 // timeoutSeconds per percobaan dihitung dari SISA budget, bukan angka tetap 55s.
 // Kalau tetap 55s, satu percobaan yang menggantung bisa menghabiskan seluruh budget
 // (terukur: 1 request agnes timeout 58s → fallback tidak pernah dicoba).
+//
+// Budget dipisah per jenis tugas: improve menghasilkan output jauh lebih panjang
+// (1.100-1.400 char) sehingga butuh waktu lebih lama daripada review.
 var AI_MAX_ATTEMPTS = 3;
 var AI_RETRY_BASE_MS = 1500;
+
+// Review: output ~2.000 char JSON, biasanya 10-40s.
 var AI_BUDGET_MS = 45000;
-var AI_MIN_ATTEMPT_MS = 8000;  // di bawah ini percobaan baru tidak ada gunanya
-var AI_MAX_ATTEMPT_MS = 22000; // batas satu percobaan non-terakhir
+var AI_MIN_ATTEMPT_MS = 8000;       // di bawah ini percobaan baru tidak ada gunanya
+var AI_MAX_ATTEMPT_MS = 22000;      // batas satu percobaan non-terakhir
 var AI_MAX_LAST_ATTEMPT_MS = 38000; // provider terakhir boleh pakai hampir semua sisa
-var AI_RESERVE_MS = 12000;     // waktu yang disisakan untuk provider berikutnya
+var AI_RESERVE_MS = 12000;          // waktu yang disisakan untuk provider berikutnya
+
+// Improve: output lebih panjang, jadi beri ruang lebih. Tetap di bawah
+// timeout GAS 55s dan maxDuration Vercel 60s.
+var AI_IMPROVE_BUDGET_MS = 52000;
+var AI_IMPROVE_MAX_ATTEMPT_MS = 26000;
+var AI_IMPROVE_MAX_LAST_ATTEMPT_MS = 45000;
+
+function aiBudgetFor(kind) {
+  if (kind === 'improve') {
+    return {
+      budgetMs: AI_IMPROVE_BUDGET_MS,
+      maxAttemptMs: AI_IMPROVE_MAX_ATTEMPT_MS,
+      maxLastAttemptMs: AI_IMPROVE_MAX_LAST_ATTEMPT_MS,
+      minAttemptMs: AI_MIN_ATTEMPT_MS,
+      reserveMs: AI_RESERVE_MS
+    };
+  }
+  return {
+    budgetMs: AI_BUDGET_MS,
+    maxAttemptMs: AI_MAX_ATTEMPT_MS,
+    maxLastAttemptMs: AI_MAX_LAST_ATTEMPT_MS,
+    minAttemptMs: AI_MIN_ATTEMPT_MS,
+    reserveMs: AI_RESERVE_MS
+  };
+}
 
 function sleepMs(ms) {
   if (typeof Utilities !== 'undefined' && Utilities.sleep) {
@@ -243,7 +272,8 @@ function sleepMs(ms) {
   if (typeof console !== 'undefined' && console.log) console.log('[sleep] ' + ms + 'ms dilewati di test');
 }
 
-function callAi(messages, temperature, useJsonFormat) {
+function callAi(messages, temperature, useJsonFormat, taskKind) {
+  var budget = aiBudgetFor(taskKind);
   var props = PropertiesService.getScriptProperties();
   var agnesKey = props.getProperty('AGNES_API_KEY');
   var agnesBase = props.getProperty('AGNES_BASE_URL') || 'https://apihub.agnes-ai.com/v1';
@@ -270,16 +300,16 @@ function callAi(messages, temperature, useJsonFormat) {
     payload: '',
     muteHttpExceptions: true,
     // diisi per percobaan dari sisa budget (lihat tryProvider)
-    timeoutSeconds: Math.round(AI_BUDGET_MS / 1000)
+    timeoutSeconds: Math.round(budget.budgetMs / 1000)
   };
 
   function tryProvider(name, baseUrl, apiKey, modelName, isLast) {
     for (var attempt = 1; attempt <= AI_MAX_ATTEMPTS; attempt++) {
       var elapsed = Date.now() - startedAt;
-      var remaining = AI_BUDGET_MS - elapsed;
+      var remaining = budget.budgetMs - elapsed;
       // Jangan mulai percobaan baru kalau sisa waktu tidak cukup —
       // lebih baik fallback ke provider lain daripada dipotong proxy Vercel.
-      if (remaining < AI_MIN_ATTEMPT_MS) {
+      if (remaining < budget.minAttemptMs) {
         errors.push(name + ': sisa waktu ' + Math.round(remaining / 1000) + 's, percobaan dilewati');
         return false;
       }
@@ -291,9 +321,9 @@ function callAi(messages, temperature, useJsonFormat) {
       // Batasi percobaan ini supaya kalau menggantung, masih ada sisa untuk fallback.
       // Provider terakhir boleh memakai hampir seluruh sisa waktu.
       var attemptTimeout = isLast
-        ? Math.min(remaining - 2000, AI_MAX_LAST_ATTEMPT_MS)
-        : Math.min(remaining - AI_RESERVE_MS, AI_MAX_ATTEMPT_MS);
-      options.timeoutSeconds = Math.round(Math.max(AI_MIN_ATTEMPT_MS, attemptTimeout) / 1000);
+        ? Math.min(remaining - 2000, budget.maxLastAttemptMs)
+        : Math.min(remaining - budget.reserveMs, budget.maxAttemptMs);
+      options.timeoutSeconds = Math.round(Math.max(budget.minAttemptMs, attemptTimeout) / 1000);
 
       var retryable = false;
       try {
@@ -322,7 +352,7 @@ function callAi(messages, temperature, useJsonFormat) {
       if (!retryable || attempt === AI_MAX_ATTEMPTS) return false;
       // backoff 1.5s → 3s
       var backoff = AI_RETRY_BASE_MS * Math.pow(2, attempt - 1);
-      if (AI_BUDGET_MS - (Date.now() - startedAt) - backoff < AI_MIN_ATTEMPT_MS) {
+      if (budget.budgetMs - (Date.now() - startedAt) - backoff < budget.minAttemptMs) {
         errors.push(name + ': sisa waktu tidak cukup untuk retry');
         return false;
       }
@@ -382,7 +412,7 @@ function callImproveApi(cvText, jobDesc, reviewContext) {
     { role: 'user', content: buildImprovePrompt(cvText, jobDesc, reviewContext) }
   ];
 
-  var content = callAi(messages, IMPROVE_TEMPERATURE, false);
+  var content = callAi(messages, IMPROVE_TEMPERATURE, false, 'improve');
   if (!content) throw new Error('AI response kosong / tidak valid');
   
   // Post-processing: hapus garis pembatas dan markdown formatting
@@ -414,7 +444,7 @@ function callAiApi(cvText, jobDesc, appliedSuggestions, pages) {
     { role: 'user', content: buildUserPrompt(cvText, jobDesc) }
   ];
 
-  const content = callAi(messages, REVIEW_TEMPERATURE, true);
+  const content = callAi(messages, REVIEW_TEMPERATURE, true, 'review');
   if (!content) throw new Error('AI response kosong / tidak valid');
   // parseAiResponse() menormalkan teks & menilai bahasa; skor numerik dihitung
   // ulang secara mekanis dari isi CV supaya hasil untuk teks yang sama selalu sama.
@@ -855,6 +885,8 @@ if (typeof module !== 'undefined') {
     AI_MAX_ATTEMPTS,
     AI_BUDGET_MS,
     sleepMs,
+    aiBudgetFor,
+    AI_IMPROVE_BUDGET_MS,
     handleReview,
     handleImprove,
     jsonResponse,

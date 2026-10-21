@@ -676,6 +676,15 @@ function isHeadingLine(line) {
   return /[A-Z]{3,}/.test(t); // minimal 3 huruf kapital berurutan
 }
 
+// Penanda list yang dibuang saat render PDF: "•", "·", "▪", "◦", "‣", "∙", dan "- " / "* ".
+// Bullet dibuang karena tanpa hanging indent baris lanjutan jatuh ke margin kiri
+// sehingga daftar terlihat berantakan. Tanpa glyph, semua baris rata kiri rapi.
+const PDF_BULLET_RE = /^\s*(?:[•·▪◦‣∙▪▫●○■□–—]|[-*])\s+/;
+
+function stripPdfBullet(line) {
+  return line.replace(PDF_BULLET_RE, '');
+}
+
 // Susun baris CV jadi token render (teks + gaya + tinggi baris).
 // Baris pertama (nama) dibuat lebih besar & bold supaya hierarki visual jelas.
 function buildPdfLines(doc, text, pageWidth, fontSize) {
@@ -686,7 +695,8 @@ function buildPdfLines(doc, text, pageWidth, fontSize) {
   let firstContentSeen = false;
 
   rawLines.forEach((raw) => {
-    const line = raw.replace(/\s+$/, '');
+    // Bullet dibuang lebih dulu, supaya deteksi nama/heading melihat teks bersih.
+    const line = stripPdfBullet(raw.replace(/\s+$/, ''));
     if (!line.trim()) {
       if (!lastWasBlank) {
         tokens.push({ text: '', bold: false, height: lineHeight * 0.6, size: fontSize });

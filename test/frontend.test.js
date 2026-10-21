@@ -256,3 +256,9 @@ test('download PDF menangani kegagalan font', () => {
   assert.ok(APP_JS.includes('Gagal membuat PDF'), 'tidak ada penanganan error font');
   assert.ok(APP_JS.includes('loadPdfFonts'), 'loader font missing');
 });
+
+// ---------- Bullet dibuang di PDF (v19) ----------
+test('app.js membuang penanda bullet saat render PDF', () => {
+  assert.ok(APP_JS.includes('stripPdfBullet'), 'fungsi stripPdfBullet missing');
+  assert.ok(APP_JS.includes('PDF_BULLET_RE'), 'regex bullet missing');
+});
