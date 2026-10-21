@@ -322,3 +322,44 @@ test('riwayat tidak memakai .reveal (tidak pernah di-observe ulang)', () => {
   assert.ok(APP_JS.includes('historyIn') === false, 'animasi riwayat cukup di CSS');
   assert.ok(css.includes('@keyframes historyIn'), 'historyIn missing');
 });
+
+// ---------- Nama file, toast, dialog (v21) ----------
+test('nama file hasil punya elemen terpisah, bukan satu teks gabungan', () => {
+  assert.ok(html.includes('id="result-file-name"'), 'result-file-name missing');
+  assert.ok(html.includes('id="result-file-pos"'), 'result-file-pos missing');
+  assert.ok(css.includes('text-overflow: ellipsis'), 'nama file panjang harus dipotong ellipsis');
+  assert.ok(css.includes('.res-head .file-name'), 'style file-name missing');
+});
+
+test('label nama file disimpan di state agar tidak hilang saat rescore', () => {
+  assert.ok(APP_JS.includes('currentLabel'), 'currentLabel state missing');
+  assert.ok(APP_JS.includes('els.resultFileName.textContent'), 'renderReview tidak menulis nama file');
+  // klik riwayat harus melepas selectedFile lama
+  assert.ok(APP_JS.includes('selectedFile = null; // label hasil harus ikut riwayat'), 'riwayat tidak reset selectedFile');
+});
+
+test('toast mendukung state proses (spinner + bar), bukan teks statis', () => {
+  assert.ok(html.includes('id="toast-text"'), 'toast-text missing');
+  assert.ok(html.includes('id="toast-bar"'), 'toast-bar missing');
+  assert.ok(APP_JS.includes('function hideToast'), 'hideToast missing');
+  assert.ok(APP_JS.includes('{ busy: true }'), 'toast proses tidak memakai busy');
+  assert.ok(css.includes('.toast-busy'), 'style toast-busy missing');
+  assert.ok(css.includes('@keyframes toastSlide'), 'bar toast missing');
+  // toast proses tidak boleh auto-hilang sebelum selesai
+  assert.ok(APP_JS.includes('if (!busy) {'), 'toast busy masih auto-hilang');
+});
+
+test('konfirmasi memakai dialog sendiri, bukan confirm() bawaan', () => {
+  assert.ok(html.includes('id="confirm-dlg"'), 'dialog konfirmasi missing');
+  assert.ok(APP_JS.includes('function askConfirm'), 'askConfirm missing');
+  assert.ok(APP_JS.includes('showModal'), 'dialog tidak memakai showModal');
+  // confirm() hanya boleh tersisa sebagai fallback browser lama
+  const confirms = (APP_JS.match(/window\.confirm\(/g) || []).length;
+  assert.equal(confirms, 1, 'confirm() hanya untuk fallback, dapat: ' + confirms);
+  assert.ok(!APP_JS.includes('confirm(\'Ini akan memanggil AI'), 'masih memakai confirm() lama');
+});
+
+test('toast proses selalu ditutup di finally', () => {
+  const hides = (APP_JS.match(/if \(els\.toast\.classList\.contains\('toast-busy'\)\) hideToast\(\);/g) || []).length;
+  assert.ok(hides >= 3, 'setiap alur AI harus menutup toast di finally, dapat: ' + hides);
+});

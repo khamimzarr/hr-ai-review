@@ -28,6 +28,8 @@ const els = {
   scoreRingFg: $('score-ring-fg'),
   roleMatch: $('role-match'),
   resultFile: $('result-file'),
+  resultFileName: $('result-file-name'),
+  resultFilePos: $('result-file-pos'),
   formatList: $('format-list'),
   breakdownCard: $('breakdown-card'),
   breakdownList: $('breakdown-list'),
@@ -51,7 +53,9 @@ const els = {
   historyList: $('history-list'),
   historyEmpty: $('history-empty'),
   reviewCount: $('review-count'),
-  toast: $('toast')
+  toast: $('toast'),
+  toastText: $('toast-text'),
+  toastBar: $('toast-bar')
 };
 
 let selectedFile = null;
@@ -59,6 +63,7 @@ let currentReview = null;
 let currentFileExt = '';
 let currentFilePages = 1;
 let currentHistoryId = null;
+let currentLabel = { name: '', pos: '' };
 
 // ---------- File handling ----------
 function handleFile(file) {
@@ -140,13 +145,13 @@ async function runReview() {
   hideError();
 
   try {
-    showToast('Mengekstrak teks CV...');
+    showToast('Membaca CV...', { busy: true });
     const cvText = await extractTextFromPdf(selectedFile);
     if (!cvText || cvText.length < CV_MIN_CHARS) {
       throw new Error('Teks CV tidak terbaca. CV mungkin berupa scan/foto. Gunakan PDF hasil export (bukan hasil scan/foto).');
     }
 
-    showToast('AI sedang mereview CV Anda...');
+    showToast('AI sedang mereview CV...', { busy: true });
     const jobDesc = els.positionInput.value + '\n' + els.jobdescInput.value;
     const data = await callReviewApi(cvText, jobDesc.trim());
 
@@ -159,12 +164,13 @@ async function runReview() {
     currentJobDesc = els.positionInput.value + '\n' + els.jobdescInput.value;
     renderReview(data.review);
     saveToHistory(selectedFile.name, els.positionInput.value, data.review, cvText, currentJobDesc.trim());
-    showToast('Review selesai! ✅');
+    showToast('Review selesai.');
   } catch (err) {
     showError(err.message || 'Terjadi kesalahan. Coba lagi.');
     showToast('Gagal: ' + err.message);
   } finally {
     setLoading(false);
+    if (els.toast.classList.contains('toast-busy')) hideToast();
   }
 }
 
@@ -271,13 +277,21 @@ function renderReview(review, labelParts) {
   renderBreakdown(review);
 
   if (els.resultFile) {
-    const parts = labelParts || [];
-    if (!parts.length) {
-      if (selectedFile) parts.push(selectedFile.name);
-      const pos = els.positionInput.value.trim();
-      if (pos) parts.push(pos);
+    // Simpan label di state supaya rescore tidak kehilangan nama file.
+    if (labelParts && labelParts.length) {
+      currentLabel = {
+        name: labelParts[0] || '',
+        pos: labelParts[1] || ''
+      };
+    } else if (selectedFile) {
+      currentLabel = { name: selectedFile.name, pos: els.positionInput.value.trim() };
     }
-    els.resultFile.textContent = parts.join(' · ');
+    if (els.resultFileName) {
+      els.resultFileName.textContent = currentLabel.name;
+      els.resultFileName.title = currentLabel.name;
+    }
+    if (els.resultFilePos) els.resultFilePos.textContent = currentLabel.pos;
+    els.resultFile.hidden = !currentLabel.name;
   }
 
   els.downloadBtn.hidden = false;
@@ -447,6 +461,7 @@ function renderHistory() {
         els.improveResult.hidden = true;
       }
       els.extraMissing.value = ''; // reset manual input saat klik history
+      selectedFile = null; // label hasil harus ikut riwayat, bukan file lama
       const label = [item.fileName, item.position].filter(Boolean);
       renderReview(item.review, label);
       els.resultSection.scrollIntoView({ behavior: 'smooth' });
@@ -474,14 +489,19 @@ let currentJobDesc = '';
 async function runImprove() {
   if (!currentReview || !currentCvText) return;
 
-  if (!confirm('Ini akan memanggil AI sekali lagi (konsumsi kuota API Anda). Lanjutkan?')) return;
+  const okImprove = await askConfirm(
+    'Perbaiki CV dengan AI?',
+    'AI akan dipanggil sekali lagi untuk menyusun ulang CV-mu.',
+    'Perbaiki'
+  );
+  if (!okImprove) return;
 
   els.improveBtn.disabled = true;
   els.improveBtnLabel.textContent = 'Memperbaiki...';
   els.improveSpinner.hidden = false;
 
   try {
-    showToast('AI sedang memperbaiki CV Anda...');
+    showToast('AI sedang memperbaiki CV...', { busy: true });
     // Baca input manual user (extraMissing)
     const extraMissing = els.extraMissing.value.trim();
     // Kirim FULL review context (score + suggestions + weaknesses + missing + atsKeywords + extraMissing)
@@ -515,11 +535,12 @@ async function runImprove() {
       updateHistoryItem(currentHistoryId, { improvedCv: data.improvedCv });
     }
 
-    showToast('CV berhasil diperbaiki! ✅');
+    showToast('CV berhasil diperbaiki.');
   } catch (err) {
     showError('Gagal memperbaiki CV: ' + err.message);
     showToast('Gagal: ' + err.message);
   } finally {
+    if (els.toast.classList.contains('toast-busy')) hideToast();
     els.improveBtn.disabled = false;
     els.improveBtnLabel.textContent = 'Perbaiki CV';
     els.improveSpinner.hidden = true;
@@ -546,7 +567,12 @@ async function runRescore() {
     return;
   }
 
-  if (!confirm('Ini akan memanggil AI sekali lagi (konsumsi kuota API Anda). Lanjutkan?')) return;
+  const okRescore = await askConfirm(
+    'Skor ulang CV?',
+    'AI akan menilai ulang CV hasil perbaikan.',
+    'Skor ulang'
+  );
+  if (!okRescore) return;
 
   els.rescoreBtn.disabled = true;
   els.rescoreBtn.textContent = 'Menskoring...';
@@ -562,7 +588,7 @@ async function runRescore() {
   }
 
   try {
-    showToast('AI mereview CV yang diperbaiki...');
+    showToast('Menilai ulang CV...', { busy: true });
     // Kirim appliedSuggestions sebagai konteks rescore
     const res = await fetch(API_PROXY, {
       method: 'POST',
@@ -592,16 +618,16 @@ async function runRescore() {
       const delta = newScore - previousScore;
       let deltaMsg = '';
       if (delta > 0) {
-        deltaMsg = 'Skor naik ' + delta + ' poin! (' + previousScore + ' → ' + newScore + ') ✅';
+        deltaMsg = 'Skor naik ' + delta + ' poin (' + previousScore + ' → ' + newScore + ').';
       } else if (delta === 0) {
-        deltaMsg = 'Skor tetap ' + newScore + ' — AI mungkin perlu perbaikan manual lebih lanjut.';
+        deltaMsg = 'Skor tetap ' + newScore + '. Perbaikan manual mungkin masih perlu.';
       } else {
-        deltaMsg = 'Skor turun ' + Math.abs(delta) + ' poin (' + previousScore + ' → ' + newScore + '). AI mungkin terlalu konservatif, coba perbaiki manual atau improve ulang.';
+        deltaMsg = 'Skor turun ' + Math.abs(delta) + ' poin (' + previousScore + ' → ' + newScore + ').';
       }
       showToast(deltaMsg);
       renderScoreDelta(previousScore, newScore, delta);
     } else {
-      showToast('Skor baru: ' + newScore + '/100! ✅');
+      showToast('Skor baru: ' + newScore + '/100.');
     }
 
     // Simpan review baru ke history
@@ -624,6 +650,7 @@ async function runRescore() {
   } catch (err) {
     showToast('Gagal: ' + err.message);
   } finally {
+    if (els.toast.classList.contains('toast-busy')) hideToast();
     els.rescoreBtn.disabled = false;
     els.rescoreBtn.textContent = 'Skor ulang';
   }
@@ -876,7 +903,7 @@ els.improveDownload.addEventListener('click', async () => {
     els.improveDownload.textContent = 'Menyiapkan PDF...';
     try {
       const chosen = await downloadImprovedPdf(text);
-      showToast('PDF siap (' + chosen.size + 'pt, ' + chosen.layout.pages + ' halaman) ✅');
+      showToast('PDF siap diunduh.');
     } catch (err) {
       showError('Gagal membuat PDF: ' + err.message);
       showToast('Gagal membuat PDF');
@@ -923,11 +950,51 @@ function hideError() {
 }
 
 let toastTimer = null;
-function showToast(msg) {
-  els.toast.textContent = msg;
+
+// showToast(msg)          -> toast biasa, hilang 3.2s
+// showToast(msg, {busy})  -> toast proses: spinner + bar berjalan, tidak auto-hilang
+//                            sampai dipanggil hideToast()
+function showToast(msg, opts) {
+  const busy = !!(opts && opts.busy);
+  const textEl = $('toast-text');
+  const barEl = $('toast-bar');
+  if (textEl) textEl.textContent = msg; else els.toast.textContent = msg;
+  els.toast.classList.toggle('toast-busy', busy);
+  if (barEl) barEl.hidden = !busy;
   els.toast.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { els.toast.hidden = true; }, 3000);
+  if (!busy) {
+    toastTimer = setTimeout(hideToast, 3200);
+  }
+}
+
+function hideToast() {
+  clearTimeout(toastTimer);
+  els.toast.hidden = true;
+  els.toast.classList.remove('toast-busy');
+  const barEl = $('toast-bar');
+  if (barEl) barEl.hidden = true;
+}
+
+// Dialog konfirmasi sendiri, menggantikan confirm() bawaan browser.
+function askConfirm(title, body, okLabel) {
+  return new Promise((resolve) => {
+    const dlg = $('confirm-dlg');
+    if (!dlg || typeof dlg.showModal !== 'function') {
+      resolve(window.confirm(title + '\n\n' + body));
+      return;
+    }
+    $('dlg-title').textContent = title;
+    $('dlg-body').textContent = body;
+    $('dlg-ok-label').textContent = okLabel || 'Lanjut';
+    const onClose = () => {
+      dlg.removeEventListener('close', onClose);
+      resolve(dlg.returnValue === 'ok');
+    };
+    dlg.addEventListener('close', onClose);
+    dlg.returnValue = '';
+    dlg.showModal();
+  });
 }
 
 // ---------- Scroll-reveal (IntersectionObserver) ----------
