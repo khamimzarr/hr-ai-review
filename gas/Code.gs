@@ -213,9 +213,16 @@ function buildImprovePrompt(cvText, jobDesc, reviewContext) {
 // Retry policy: 429 / 5xx / timeout / response kosong diulang maks 3x dengan backoff
 // 1.5s lalu 3s. Dibatasi AI_BUDGET_MS supaya total kerja tetap di bawah
 // timeoutSeconds GAS (55s) dan maxDuration Vercel (60s).
+//
+// timeoutSeconds per percobaan dihitung dari SISA budget, bukan angka tetap 55s.
+// Kalau tetap 55s, satu percobaan yang menggantung bisa menghabiskan seluruh budget
+// (terukur: 1 request agnes timeout 58s → fallback tidak pernah dicoba).
 var AI_MAX_ATTEMPTS = 3;
 var AI_RETRY_BASE_MS = 1500;
 var AI_BUDGET_MS = 45000;
+var AI_MIN_ATTEMPT_MS = 8000;  // di bawah ini percobaan baru tidak ada gunanya
+var AI_MAX_ATTEMPT_MS = 28000; // batas satu percobaan non-terakhir
+var AI_RESERVE_MS = 10000;     // waktu yang disisakan untuk provider berikutnya
 
 function sleepMs(ms) {
   if (typeof Utilities !== 'undefined' && Utilities.sleep) {
@@ -252,17 +259,18 @@ function callAi(messages, temperature, useJsonFormat) {
     headers: { 'Content-Type': 'application/json' },
     payload: '',
     muteHttpExceptions: true,
-    // 55s: beri ruang untuk AI (latency bisa 8-30s+) tapi tetap di bawah batas
-    // Vercel hobby maxDuration 60s agar tidak terputus proxynya.
-    timeoutSeconds: 55
+    // diisi per percobaan dari sisa budget (lihat tryProvider)
+    timeoutSeconds: Math.round(AI_BUDGET_MS / 1000)
   };
 
   function tryProvider(name, baseUrl, apiKey, modelName) {
     for (var attempt = 1; attempt <= AI_MAX_ATTEMPTS; attempt++) {
+      var elapsed = Date.now() - startedAt;
+      var remaining = AI_BUDGET_MS - elapsed;
       // Jangan mulai percobaan baru kalau sisa waktu tidak cukup —
       // lebih baik fallback ke provider lain daripada dipotong proxy Vercel.
-      if (Date.now() - startedAt > AI_BUDGET_MS) {
-        errors.push(name + ': budget waktu habis, percobaan dilewati');
+      if (remaining < AI_MIN_ATTEMPT_MS) {
+        errors.push(name + ': sisa waktu ' + Math.round(remaining / 1000) + 's, percobaan dilewati');
         return false;
       }
 
@@ -270,6 +278,10 @@ function callAi(messages, temperature, useJsonFormat) {
       payload.model = modelName;
       options.payload = JSON.stringify(payload);
       options.headers.Authorization = 'Bearer ' + apiKey;
+      // Batasi percobaan ini supaya kalau menggantung, masih ada sisa untuk fallback.
+      // Sisakan AI_RESERVE_MS untuk provider berikutnya.
+      var attemptTimeout = Math.max(AI_MIN_ATTEMPT_MS, Math.min(remaining - AI_RESERVE_MS, AI_MAX_ATTEMPT_MS));
+      options.timeoutSeconds = Math.round(attemptTimeout / 1000);
 
       var retryable = false;
       try {
@@ -294,11 +306,12 @@ function callAi(messages, temperature, useJsonFormat) {
 
       if (!retryable || attempt === AI_MAX_ATTEMPTS) return false;
       // backoff 1.5s → 3s
-      if (Date.now() - startedAt + AI_RETRY_BASE_MS * Math.pow(2, attempt - 1) > AI_BUDGET_MS) {
+      var backoff = AI_RETRY_BASE_MS * Math.pow(2, attempt - 1);
+      if (AI_BUDGET_MS - (Date.now() - startedAt) - backoff < AI_MIN_ATTEMPT_MS) {
         errors.push(name + ': sisa waktu tidak cukup untuk retry');
         return false;
       }
-      sleepMs(AI_RETRY_BASE_MS * Math.pow(2, attempt - 1));
+      sleepMs(backoff);
     }
     return false;
   }

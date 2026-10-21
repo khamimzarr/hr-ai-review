@@ -243,3 +243,18 @@ test('scoreCvMechanical: rasio ATS setengah dapat 20', () => {
   const r = Code.scoreCvMechanical(cv, 'React TypeScript Kubernetes Terraform', 1);
   assert.strictEqual(r.breakdown.ats, 20, 'rasio 50% harus 20');
 });
+
+test('timeout per percobaan mengikuti sisa budget, bukan angka tetap 55s', () => {
+  UrlFetchApp._reset();
+  PropertiesService._reset();
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'test-key');
+  UrlFetchApp._setResponse(500, 'boom');
+  UrlFetchApp._setResponse(200, JSON.stringify({
+    choices: [{ message: { content: '{"score":70,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":70}' } }]
+  }));
+  Code.callAiApi('CV', '');
+  const first = UrlFetchApp._callLog[0].options.timeoutSeconds;
+  assert.ok(first <= 28, 'percobaan pertama harus dibatasi <=28s, dapat ' + first);
+  assert.ok(first >= 8, 'jangan terlalu pendek: ' + first);
+  assert.ok(Code.AI_BUDGET_MS + 5000 < 55000, 'budget harus di bawah timeout GAS 55s');
+});
