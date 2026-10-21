@@ -221,8 +221,9 @@ var AI_MAX_ATTEMPTS = 3;
 var AI_RETRY_BASE_MS = 1500;
 var AI_BUDGET_MS = 45000;
 var AI_MIN_ATTEMPT_MS = 8000;  // di bawah ini percobaan baru tidak ada gunanya
-var AI_MAX_ATTEMPT_MS = 28000; // batas satu percobaan non-terakhir
-var AI_RESERVE_MS = 10000;     // waktu yang disisakan untuk provider berikutnya
+var AI_MAX_ATTEMPT_MS = 22000; // batas satu percobaan non-terakhir
+var AI_MAX_LAST_ATTEMPT_MS = 38000; // provider terakhir boleh pakai hampir semua sisa
+var AI_RESERVE_MS = 12000;     // waktu yang disisakan untuk provider berikutnya
 
 function sleepMs(ms) {
   if (typeof Utilities !== 'undefined' && Utilities.sleep) {
@@ -263,7 +264,7 @@ function callAi(messages, temperature, useJsonFormat) {
     timeoutSeconds: Math.round(AI_BUDGET_MS / 1000)
   };
 
-  function tryProvider(name, baseUrl, apiKey, modelName) {
+  function tryProvider(name, baseUrl, apiKey, modelName, isLast) {
     for (var attempt = 1; attempt <= AI_MAX_ATTEMPTS; attempt++) {
       var elapsed = Date.now() - startedAt;
       var remaining = AI_BUDGET_MS - elapsed;
@@ -279,9 +280,11 @@ function callAi(messages, temperature, useJsonFormat) {
       options.payload = JSON.stringify(payload);
       options.headers.Authorization = 'Bearer ' + apiKey;
       // Batasi percobaan ini supaya kalau menggantung, masih ada sisa untuk fallback.
-      // Sisakan AI_RESERVE_MS untuk provider berikutnya.
-      var attemptTimeout = Math.max(AI_MIN_ATTEMPT_MS, Math.min(remaining - AI_RESERVE_MS, AI_MAX_ATTEMPT_MS));
-      options.timeoutSeconds = Math.round(attemptTimeout / 1000);
+      // Provider terakhir boleh memakai hampir seluruh sisa waktu.
+      var attemptTimeout = isLast
+        ? Math.min(remaining - 2000, AI_MAX_LAST_ATTEMPT_MS)
+        : Math.min(remaining - AI_RESERVE_MS, AI_MAX_ATTEMPT_MS);
+      options.timeoutSeconds = Math.round(Math.max(AI_MIN_ATTEMPT_MS, attemptTimeout) / 1000);
 
       var retryable = false;
       try {
@@ -300,7 +303,10 @@ function callAi(messages, temperature, useJsonFormat) {
           errors.push(name + ' HTTP ' + code + ' (percobaan ' + attempt + '): ' + body.slice(0, 120));
         }
       } catch (e) {
-        retryable = true; // timeout / network — biasanya sementara
+        // Timeout TIDAK diulang di model yang sama: kalau satu percobaan sudah
+        // kehabisan 28s, mengulanginya hanya menghabiskan sisa budget yang
+        // seharusnya dipakai fallback. Langsung lempar ke provider berikutnya.
+        retryable = false;
         errors.push(name + ' (percobaan ' + attempt + '): ' + e.message);
       }
 
@@ -319,11 +325,11 @@ function callAi(messages, temperature, useJsonFormat) {
   var result;
 
   // 1. agnes-3.0-flash (primary)
-  result = tryProvider('agnes-3.0-flash', agnesBase, agnesKey, 'agnes-3.0-flash');
+  result = tryProvider('agnes-3.0-flash', agnesBase, agnesKey, 'agnes-3.0-flash', false);
   if (result) return result;
 
   // 2. agnes-2.5-flash (fallback)
-  result = tryProvider('agnes-2.5-flash', agnesBase, agnesKey, 'agnes-2.5-flash');
+  result = tryProvider('agnes-2.5-flash', agnesBase, agnesKey, 'agnes-2.5-flash', true);
   if (result) return result;
 
   throw new Error('Agnes API gagal. ' + errors.join(' | '));
