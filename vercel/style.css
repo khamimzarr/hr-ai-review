@@ -55,6 +55,8 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :target { scroll-margin-top: 90px; }
 #upload, #history { scroll-margin-top: 90px; }
+/* auto-scroll ke hasil jangan menempel di bawah floating nav */
+#result-section { scroll-margin-top: 84px; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 body {
   font-family: var(--font-sans);
