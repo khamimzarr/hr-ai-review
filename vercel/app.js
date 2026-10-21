@@ -620,64 +620,230 @@ function renderScoreDelta(prev, curr, delta) {
 
 els.rescoreBtn.addEventListener('click', runRescore);
 
-els.improveDownload.addEventListener('click', () => {
+// ---------- PDF: font Calibri-compatible (Carlito) 11pt ----------
+// Calibri milik Microsoft dan tidak boleh di-embed ke PDF. Carlito adalah font
+// metrik-identik Calibri (OFL, dibuat oleh Google), jadi layout tetap sama persis
+// tapi legal untuk disematkan.
+const PDF_FONT = {
+  family: 'Carlito',
+  regular: '/fonts/Carlito-Regular.ttf',
+  bold: '/fonts/Carlito-Bold.ttf',
+  size: 11,        // pt — ukuran utama yang diminta
+  lineSpacing: 1.15
+};
+
+let pdfFontCache = null;
+
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+async function loadPdfFonts() {
+  if (pdfFontCache) return pdfFontCache;
+  const fetchFont = async (url) => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Font gagal dimuat (' + res.status + ')');
+    return arrayBufferToBase64(await res.arrayBuffer());
+  };
+  const [regular, bold] = await Promise.all([
+    fetchFont(PDF_FONT.regular),
+    fetchFont(PDF_FONT.bold)
+  ]);
+  pdfFontCache = { regular, bold };
+  return pdfFontCache;
+}
+
+function registerPdfFont(doc, fonts) {
+  doc.addFileToVFS('Carlito-Regular.ttf', fonts.regular);
+  doc.addFont('Carlito-Regular.ttf', PDF_FONT.family, 'normal');
+  doc.addFileToVFS('Carlito-Bold.ttf', fonts.bold);
+  doc.addFont('Carlito-Bold.ttf', PDF_FONT.family, 'bold');
+}
+
+// Heading CV: baris kapital pendek tanpa titik di akhir, mis. "RINGKASAN PROFIL".
+const PDF_HEADING_RE = /^[A-Z][A-Z0-9 .&/()'’\-]{2,48}$/;
+
+function isHeadingLine(line) {
+  const t = line.trim();
+  if (!t || t.length > 48) return false;
+  if (!PDF_HEADING_RE.test(t)) return false;
+  return /[A-Z]{3,}/.test(t); // minimal 3 huruf kapital berurutan
+}
+
+// Susun baris CV jadi token render (teks + gaya + tinggi baris).
+// Baris pertama (nama) dibuat lebih besar & bold supaya hierarki visual jelas.
+function buildPdfLines(doc, text, pageWidth, fontSize) {
+  const lineHeight = fontSize * 0.3528 * PDF_FONT.lineSpacing; // pt -> mm
+  const tokens = [];
+  const rawLines = String(text).split(/\r?\n/);
+  let lastWasBlank = true; // buang baris kosong di awal
+  let firstContentSeen = false;
+
+  rawLines.forEach((raw) => {
+    const line = raw.replace(/\s+$/, '');
+    if (!line.trim()) {
+      if (!lastWasBlank) {
+        tokens.push({ text: '', bold: false, height: lineHeight * 0.6, size: fontSize });
+        lastWasBlank = true;
+      }
+      return;
+    }
+    lastWasBlank = false;
+
+    // Nama: baris isi pertama, pendek, tanpa tanda baca kontak.
+    if (!firstContentSeen) {
+      firstContentSeen = true;
+      const looksLikeName = line.trim().length <= 45 && !/[:@|•]/.test(line) && !isHeadingLine(line);
+      if (looksLikeName) {
+        const nameSize = fontSize + 3; // 11 -> 14pt
+        tokens.push({ text: line.trim(), bold: true, height: nameSize * 0.3528 * 1.35, size: nameSize });
+        return;
+      }
+    }
+
+    if (isHeadingLine(line)) {
+      tokens.push({ text: line.trim(), bold: true, height: lineHeight * 1.25, size: fontSize });
+      return;
+    }
+
+    // Baris panjang dipecah sesuai lebar halaman, dengan gaya normal.
+    doc.setFont(PDF_FONT.family, 'normal');
+    doc.setFontSize(fontSize);
+    const wrapped = doc.splitTextToSize(line, pageWidth);
+    wrapped.forEach((w) => tokens.push({ text: w, bold: false, height: lineHeight, size: fontSize }));
+  });
+
+  return { tokens, lineHeight };
+}
+
+function layoutPdf(doc, text, opts) {
+  const { margin, pageWidth, pageHeight, fontSize } = opts;
+  const { tokens } = buildPdfLines(doc, text, pageWidth, fontSize);
+  const usableBottom = pageHeight - margin;
+
+  let y = margin;
+  let pages = 1;
+  const placements = [];
+  // Anti-orphan: heading tidak boleh jadi baris terakhir di halaman.
+  // Kalau heading + minimal 2 baris isinya tidak muat, pindahkan heading ke halaman berikut.
+  const MIN_AFTER_HEADING = 2;
+
+  tokens.forEach((tk, idx) => {
+    let need = tk.height;
+
+    if (tk.bold) {
+      // hitung tinggi heading + beberapa baris berikutnya sebagai satu blok
+      let block = tk.height;
+      for (let k = 1; k <= MIN_AFTER_HEADING && idx + k < tokens.length; k++) {
+        block += tokens[idx + k].height;
+      }
+      need = block;
+    }
+
+    if (y + need > usableBottom) {
+      pages++;
+      y = margin;
+    }
+    placements.push({ text: tk.text, bold: tk.bold, y, size: tk.size });
+    y += tk.height;
+  });
+
+  return { placements, pages, totalHeight: y };
+}
+
+function renderPdf(doc, placements, opts) {
+  const { margin, fontSize } = opts;
+  let page = 1;
+  let lastY = 0;
+
+  placements.forEach((p) => {
+    // Deteksi pindah halaman dari posisi y yang turun kembali ke margin.
+    if (p.y < lastY - 1) {
+      doc.addPage();
+    }
+    lastY = p.y;
+
+    if (!p.text) return;
+    doc.setFont(PDF_FONT.family, p.bold ? 'bold' : 'normal');
+    doc.setFontSize(p.size || fontSize);
+    doc.text(p.text, margin, p.y);
+  });
+
+  return page;
+}
+
+async function downloadImprovedPdf(text) {
+  const { jsPDF } = window.jspdf;
+  const targetPages = currentFilePages || 1;
+
+  const margin = 18;
+  const opts = {
+    margin,
+    pageWidth: 210 - margin * 2, // 174mm
+    pageHeight: 297,
+    fontSize: PDF_FONT.size
+  };
+
+  const fonts = await loadPdfFonts();
+
+  // 11pt adalah ukuran utama. Turunkan hanya kalau hasilnya jadi lebih dari 2 halaman,
+  // karena CV ideal 1-2 halaman — bukan untuk memaksa muat 1 halaman seperti sebelumnya.
+  const candidates = [11, 10.5, 10, 9.5, 9];
+  let chosen = null;
+
+  for (let i = 0; i < candidates.length; i++) {
+    const size = candidates[i];
+    const probe = new jsPDF({ unit: 'mm', format: 'a4' });
+    registerPdfFont(probe, fonts);
+    const lay = layoutPdf(probe, text, Object.assign({}, opts, { fontSize: size }));
+    const maxAllowed = Math.max(targetPages, 2); // jangan sampai lebih dari 2 halaman kalau bisa
+    if (lay.pages <= maxAllowed) {
+      chosen = { size, layout: lay };
+      break;
+    }
+  }
+
+  if (!chosen) {
+    const probe = new jsPDF({ unit: 'mm', format: 'a4' });
+    registerPdfFont(probe, fonts);
+    chosen = {
+      size: candidates[candidates.length - 1],
+      layout: layoutPdf(probe, text, Object.assign({}, opts, { fontSize: candidates[candidates.length - 1] }))
+    };
+  }
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  registerPdfFont(doc, fonts);
+  renderPdf(doc, chosen.layout.placements, Object.assign({}, opts, { fontSize: chosen.size }));
+
+  doc.save('cv-diperbaiki.pdf');
+  return chosen;
+}
+
+els.improveDownload.addEventListener('click', async () => {
   const text = els.improveText.value;
   if (!text) return;
 
   if (currentFileExt === 'pdf') {
-    // Generate PDF — coba fit ke halaman asli (currentFilePages)
-    const { jsPDF } = window.jspdf;
-    const targetPages = currentFilePages || 1;
-    const margin = 18;
-    const pageWidth = 210 - margin * 2; // 174mm
-    const pageHeight = 297 - margin * 2; // 261mm
-
-    // Cari font size yang pas: coba dari 11 turun ke 8
-    let fontSize = 11;
-    let finalDoc = null;
-
-    for (let size = 11; size >= 8; size--) {
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(size);
-
-      const lines = doc.splitTextToSize(text, pageWidth);
-      const lineHeight = size * 0.5; // estimasi line height
-      const linesPerPage = Math.floor(pageHeight / lineHeight);
-      const neededPages = Math.ceil(lines.length / linesPerPage);
-
-      if (neededPages <= targetPages) {
-        fontSize = size;
-        finalDoc = doc;
-        break;
-      }
-      // size terlalu besar, lanjut coba lebih kecil
+    els.improveDownload.disabled = true;
+    const original = els.improveDownload.textContent;
+    els.improveDownload.textContent = 'Menyiapkan PDF...';
+    try {
+      const chosen = await downloadImprovedPdf(text);
+      showToast('PDF siap (' + chosen.size + 'pt, ' + chosen.layout.pages + ' halaman) ✅');
+    } catch (err) {
+      showError('Gagal membuat PDF: ' + err.message);
+      showToast('Gagal membuat PDF');
+    } finally {
+      els.improveDownload.disabled = false;
+      els.improveDownload.textContent = original;
     }
-
-    if (!finalDoc) {
-      // fallback: pakai font 8, biar overflow
-      finalDoc = new jsPDF({ unit: 'mm', format: 'a4' });
-      fontSize = 8;
-      finalDoc.setFont('helvetica', 'normal');
-      finalDoc.setFontSize(fontSize);
-    }
-
-    // Render dengan font size yang sudah dipilih
-    const doc = finalDoc;
-    const lines = doc.splitTextToSize(text, pageWidth);
-    const lineHeight = Math.max(fontSize * 0.5, 3.5);
-    let y = margin;
-
-    lines.forEach((line) => {
-      if (y + lineHeight > 297 - margin) {
-        doc.addPage();
-        y = margin;
-      }
-      doc.text(line, margin, y);
-      y += lineHeight;
-    });
-
-    doc.save('cv-diperbaiki.pdf');
   } else {
     // TXT: download as text
     const blob = new Blob([text], { type: 'text/plain' });
