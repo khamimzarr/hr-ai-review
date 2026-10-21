@@ -258,3 +258,54 @@ test('timeout per percobaan mengikuti sisa budget, bukan angka tetap 55s', () =>
   assert.ok(first >= 8, 'jangan terlalu pendek: ' + first);
   assert.ok(Code.AI_BUDGET_MS + 5000 < 55000, 'budget harus di bawah timeout GAS 55s');
 });
+
+test('timeout tidak diulang di model yang sama, langsung fallback', () => {
+  UrlFetchApp._reset();
+  PropertiesService._reset();
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'test-key');
+  // Simulasikan UrlFetchApp yang melempar (timeout) untuk percobaan pertama
+  const realFetch = UrlFetchApp.fetch;
+  let calls = 0;
+  UrlFetchApp.fetch = function (url, options) {
+    calls++;
+    if (calls === 1) throw new Error('Timeout: ' + url);
+    return realFetch.call(this, url, options);
+  };
+  UrlFetchApp._setResponse(200, JSON.stringify({
+    choices: [{ message: { content: '{"score":70,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":70}' } }]
+  }));
+  try {
+    const review = Code.callAiApi('CV', '');
+    assert.strictEqual(review.roleMatch, 70);
+    assert.strictEqual(calls, 2, 'timeout → langsung fallback, bukan retry 3x (dapat ' + calls + ' panggilan)');
+    const lastModel = JSON.parse(UrlFetchApp._getLastCall().options.payload).model;
+    assert.strictEqual(lastModel, 'agnes-2.5-flash', 'harus pindah ke fallback');
+  } finally {
+    UrlFetchApp.fetch = realFetch;
+  }
+});
+
+test('provider terakhir dapat timeout lebih longgar dari provider pertama', () => {
+  UrlFetchApp._reset();
+  PropertiesService._reset();
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'test-key');
+  const realFetch = UrlFetchApp.fetch;
+  let calls = 0;
+  const timeouts = [];
+  UrlFetchApp.fetch = function (url, options) {
+    calls++;
+    timeouts.push(options.timeoutSeconds);
+    if (calls === 1) throw new Error('Timeout');
+    return realFetch.call(this, url, options);
+  };
+  UrlFetchApp._setResponse(200, JSON.stringify({
+    choices: [{ message: { content: '{"score":60,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":60}' } }]
+  }));
+  try {
+    Code.callAiApi('CV', '');
+    assert.strictEqual(timeouts.length, 2);
+    assert.ok(timeouts[1] > timeouts[0], 'fallback harus dapat timeout lebih besar: ' + JSON.stringify(timeouts));
+  } finally {
+    UrlFetchApp.fetch = realFetch;
+  }
+});
