@@ -4,225 +4,205 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HR AI REVIEW — Review CV dengan AI</title>
-  <meta name="description" content="Review CV Anda dengan AI. Skor, kekuatan, kelemahan, saran perbaikan, dan ATS keywords.">
+  <meta name="description" content="Review CV dengan AI. Skor, kekuatan, kelemahan, saran perbaikan, dan kata kunci ATS.">
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#1a91f0">
+  <meta name="theme-color" content="#f4f2e6">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="apple-touch-icon" href="/icon-192.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <!-- Nav -->
   <nav class="nav" id="nav">
     <div class="nav-inner">
-      <a class="brand" href="/">HR AI <span>REVIEW</span></a>
-      <div class="nav-links">
-        <a href="#upload">Review</a>
-        <a href="#history">Riwayat</a>
+      <div class="nav-bar">
+        <a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span>HR AI Review</a>
+        <div class="nav-links">
+          <a href="#upload" aria-current="page">Review</a>
+          <a href="#history">Riwayat</a>
+        </div>
+        <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><i></i></button>
+        <div class="nav-progress" id="nav-progress"></div>
       </div>
-      <a class="btn btn-primary btn-sm" href="#upload">Review CV</a>
     </div>
-    <div class="nav-progress" id="nav-progress"></div>
   </nav>
 
   <!-- Hero -->
   <header class="hero">
     <div class="hero-copy">
-      <h1 class="hero-title reveal reveal-s1">Tingkatkan CV Anda, raih <span class="accent">interview</span> impian</h1>
-      <p class="hero-sub reveal reveal-s2">Upload CV Anda dan dapatkan review profesional dari AI — skor, kekuatan, kelemahan, saran perbaikan, dan keyword ATS dalam hitungan detik.</p>
-      <div class="hero-actions reveal reveal-s3">
-        <a class="btn btn-primary" href="#upload">Review CV Sekarang</a>
-        <a class="btn-ghost" href="#how">Pelajari cara kerja</a>
-      </div>
-      <div class="trustline reveal reveal-s4"><span class="star">★</span> <span id="review-count">0</span> review tersimpan</div>
-    </div>
-    <div class="hero-visual reveal reveal-s5">
-      <div class="resume-card">
-        <div class="resume-card-head"><span class="doc-dot"></span> CV.pdf</div>
-        <div class="resume-score">ATS Score</div>
-        <div class="resume-score-big">85<span>/100</span></div>
-        <div class="resume-bars">
-          <div class="bar"><i style="width:85%"></i></div>
-          <div class="bar"><i style="width:70%"></i></div>
-          <div class="bar"><i style="width:92%"></i></div>
-        </div>
-        <span class="chip chip-blue">Strong</span>
-        <span class="chip chip-mint">ATS Friendly</span>
+      <h1 class="hero-title reveal reveal-s1">Tingkatkan CV, raih <em>interview</em>.</h1>
+      <p class="hero-sub reveal reveal-s2">Skor dan saran perbaikan dalam hitungan detik.</p>
+      <div class="hero-meta reveal reveal-s3">
+        <span class="dot-live" aria-hidden="true"></span>
+        <span><span id="review-count">0</span> review tersimpan</span>
       </div>
     </div>
-  </header>
 
-  <!-- Upload Section -->
-  <section id="upload" class="section">
-    <div class="section-head">
-      <p class="eyebrow reveal reveal-s1">Mulai review</p>
-      <h2 class="section-title reveal reveal-s2">Review CV Anda</h2>
-      <p class="section-sub reveal reveal-s3">Unggah file PDF. Tambahkan posisi yang dilamar agar review lebih relevan.</p>
-    </div>
-    <div class="upload-card reveal reveal-s4">
+    <section id="upload" class="upload reveal reveal-s4">
       <label class="dropzone" id="dropzone" for="file-input">
         <input type="file" id="file-input" accept=".pdf,.txt" hidden>
-        <div class="dz-icon">📄</div>
-        <p class="dz-title">Tarik & letakkan file di sini</p>
-        <p class="dz-sub">atau klik untuk memilih · PDF atau TXT, maks 5 MB</p>
+        <span class="dz-icon" aria-hidden="true">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 16V4m0 0L7 9m5-5 5 5"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+          </svg>
+        </span>
+        <p class="dz-title">Tarik file ke sini</p>
+        <p class="dz-sub">PDF atau TXT · maks. 5 MB</p>
         <p class="dz-file" id="file-name"></p>
       </label>
-      <div class="form-grid">
-        <div class="field">
-          <label for="position-input">Posisi yang dilamar (opsional)</label>
-          <input type="text" id="position-input" placeholder="cth: Frontend Developer">
-        </div>
-        <div class="field">
-          <label for="jobdesc-input">Job description (opsional)</label>
-          <textarea id="jobdesc-input" rows="3" placeholder="Tempel deskripsi pekerjaan agar review lebih relevan..."></textarea>
-        </div>
+
+      <div class="field">
+        <label for="position-input">Posisi yang dilamar</label>
+        <input type="text" id="position-input" placeholder="Frontend Developer">
       </div>
-      <button class="btn btn-primary btn-block" id="review-btn" disabled>
-        <span class="btn-label">Review CV Sekarang</span>
+
+      <div class="field">
+        <label for="jobdesc-input">Deskripsi pekerjaan</label>
+        <textarea id="jobdesc-input" rows="3" placeholder="Tempel deskripsi lowongan"></textarea>
+      </div>
+
+      <button class="btn" id="review-btn" disabled>
+        <span class="btn-label">Pilih file dulu</span>
         <span class="spinner" hidden></span>
+        <span class="arrow" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 14 4-4-4-4"/></svg>
+        </span>
       </button>
       <p class="form-error" id="form-error" hidden></p>
-    </div>
-  </section>
+    </section>
+  </header>
 
-  <!-- Result Section -->
-  <section id="result-section" class="section" hidden>
-    <div class="section-head">
-      <p class="eyebrow">Hasil review</p>
-      <h2 class="section-title">Hasil Review CV</h2>
-    </div>
-    <div class="result-grid">
-      <div class="result-side">
-        <div class="card score-card">
-          <div class="score-ring" id="score-ring">
+  <!-- Result -->
+  <div class="sheet" id="result-section" hidden>
+    <div class="wrap">
+      <div class="res-head">
+        <h2>Hasil review</h2>
+        <span class="file" id="result-file"></span>
+      </div>
+
+      <div class="score">
+        <div class="score-main">
+          <div class="score-ring" id="score-ring" hidden aria-hidden="true">
             <svg viewBox="0 0 120 120">
               <circle class="ring-bg" cx="60" cy="60" r="52"/>
               <circle class="ring-fg" id="score-ring-fg" cx="60" cy="60" r="52"/>
             </svg>
-            <div class="score-num" id="score-num">0</div>
           </div>
-          <div class="role-match">
-            <span class="label">Role Match</span>
-            <span class="value" id="role-match">0%</span>
+          <div class="score-label">Skor</div>
+          <div class="score-num"><span id="score-num">0</span><small>/100</small></div>
+          <p class="verdict" id="summary-text"></p>
+          <div class="rolepill">
+            <span>Kecocokan peran</span>
+            <span class="rp-val" id="role-match">0%</span>
           </div>
         </div>
-        <div class="card format-card">
-          <h3>Format Check</h3>
-          <ul class="format-list" id="format-list"></ul>
+        <div class="score-side">
+          <div class="card breakdown-card" id="breakdown-card" hidden>
+            <div class="sub-label">Rincian</div>
+            <ul class="breakdown-list" id="breakdown-list"></ul>
+          </div>
         </div>
-        <div class="card breakdown-card" id="breakdown-card" hidden>
-          <h3>Rincian Skor</h3>
-          <p class="breakdown-note">Dihitung dari isi CV Anda, jadi skornya sama setiap kali direview.</p>
-          <ul class="breakdown-list" id="breakdown-list"></ul>
-        </div>
-        <button class="btn btn-primary" id="download-btn" hidden>Download Hasil (.json)</button>
       </div>
-      <div class="result-main">
-        <div class="card summary-card">
-          <h3>Ringkasan</h3>
-          <p id="summary-text"></p>
+
+      <div class="grid">
+        <div class="card c-green reveal reveal-s1">
+          <h3><span class="k" aria-hidden="true"></span>Kekuatan</h3>
+          <ul id="strengths-list" class="bullet-list check-list"></ul>
         </div>
-        <div class="card list-card">
-          <h3 class="c-green">✓ Kekuatan</h3>
-          <ul id="strengths-list" class="check-list"></ul>
+
+        <div class="card c-coral reveal reveal-s2">
+          <h3><span class="k" aria-hidden="true"></span>Kelemahan</h3>
+          <ul id="weaknesses-list" class="bullet-list x-list"></ul>
         </div>
-        <div class="card list-card">
-          <h3 class="c-rose">✗ Kelemahan</h3>
-          <ul id="weaknesses-list" class="x-list"></ul>
+
+        <div class="card c-amber reveal reveal-s3">
+          <h3><span class="k" aria-hidden="true"></span>Saran perbaikan</h3>
+          <ul id="suggestions-list" class="bullet-list arrow-list"></ul>
         </div>
-        <div class="card list-card">
-          <h3 class="c-iris">→ Saran Perbaikan</h3>
-          <ul id="suggestions-list" class="arrow-list"></ul>
-        </div>
-        <div class="card ats-card">
-          <h3>ATS Keywords Ditemukan</h3>
+
+        <div class="card c-blue reveal reveal-s4">
+          <h3><span class="k" aria-hidden="true"></span>Kata kunci ATS</h3>
           <div class="tags" id="ats-tags"></div>
         </div>
-        <div class="card ats-card">
-          <h3>Yang Kurang</h3>
-          <ul id="missing-list" class="x-list"></ul>
+
+        <div class="card reveal reveal-s5">
+          <h3>Format</h3>
+          <ul class="format-list" id="format-list"></ul>
+        </div>
+
+        <div class="card reveal reveal-s6">
+          <h3>Yang kurang</h3>
+          <ul id="missing-list" class="bullet-list x-list"></ul>
         </div>
       </div>
-    </div>
-    <div class="improve-zone">
-      <div class="manual-input-card" id="manual-input-card" hidden>
-        <div class="manual-input-head">
-          <h3>✍️ Tambah Kekurangan Manual</h3>
-          <p class="manual-input-hint">Ada kekurangan yang AI tidak ketahui? Tulis di sini, AI akan perbaiki.</p>
-        </div>
-        <textarea id="extra-missing" rows="4" placeholder="Contoh: Saya sebenarnya punya pengalaman React 2 tahun tapi belum tertulis di CV. Saya juga punya sertifikasi AWS tapi lupa dimasukkan. Alamat saya bisa ditambahkan: Jl. Merdeka No. 123, Bandung."></textarea>
+
+      <div class="result-actions">
+        <button class="btn btn-line" id="download-btn" hidden>Unduh hasil (.json)</button>
       </div>
-      <button class="btn btn-primary" id="improve-btn" hidden>
-        <span class="btn-label">✨ Perbaiki CV dengan AI</span>
-        <span class="spinner" hidden></span>
-      </button>
-      <div id="improve-result" class="card improve-result" hidden>
+
+      <!-- Improve -->
+      <div class="improve">
+        <div class="manual-input-card" id="manual-input-card" hidden>
+          <h3>Tambah kekurangan manual</h3>
+          <p class="manual-input-hint">Ada yang AI tidak tahu? Tulis di sini.</p>
+          <textarea id="extra-missing" rows="4" placeholder="Contoh: punya sertifikasi AWS yang belum masuk CV."></textarea>
+        </div>
+
         <div class="improve-head">
-          <h3>CV yang Diperbaiki</h3>
-          <div class="improve-actions">
-            <button class="btn btn-sm btn-primary" id="improve-download">Download (.txt)</button>
-            <button class="btn btn-sm btn-ghost" id="improve-copy">Salin</button>
+          <div>
+            <h3>Perbaiki CV dengan AI</h3>
+            <p>Bisa disunting sebelum diunduh.</p>
           </div>
+          <button class="btn btn-yellow" id="improve-btn" hidden>
+            <span class="btn-label">Perbaiki CV</span>
+            <span class="spinner" hidden></span>
+            <span class="arrow" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 14 4-4-4-4"/></svg>
+            </span>
+          </button>
         </div>
-        <textarea id="improve-text" class="improve-text" placeholder="Hasil perbaikan AI akan muncul di sini. Anda bisa mengedit langsung sebelum download atau skor ulang."></textarea>
-        <p class="improve-edit-hint">✏️ Anda bisa mengedit teks di atas sebelum download atau skor ulang.</p>
-        <div class="rescore-zone">
-          <div id="score-delta" class="score-delta" hidden></div>
-          <button class="btn btn-primary" id="rescore-btn">📊 Skor Ulang CV Baru</button>
-          <p class="rescore-hint">Cek apakah CV yang diperbaiki mendapat skor lebih tinggi.</p>
+
+        <div id="improve-result" class="improve-result" hidden>
+          <div class="improve-actions">
+            <button class="btn btn-sm" id="improve-download">Unduh (.pdf)</button>
+            <button class="btn btn-sm btn-quiet" id="improve-copy">Salin</button>
+          </div>
+          <textarea id="improve-text" class="improve-text" placeholder="Hasil perbaikan muncul di sini."></textarea>
+          <p class="improve-edit-hint">Bisa disunting sebelum diunduh.</p>
+
+          <div class="rescore-zone">
+            <div id="score-delta" class="score-delta" hidden></div>
+            <button class="btn btn-quiet" id="rescore-btn">Skor ulang</button>
+          </div>
+
+          <p class="improve-note">Baca ulang hasilnya — pastikan sesuai pengalaman Anda yang sebenarnya.</p>
         </div>
-        <p class="improve-note"><em>Catatan: Tolong baca kembali hasil perbaikan di atas dengan teliti — pastikan setiap informasi sesuai dengan pengalaman dan keahlian Anda yang sebenarnya. Silakan sunting kembali sebelum mengirimkan ke perekrut; AI membantu merapikan kata, namun kejujuran tetap menjadi nilai utama Anda.</em></p>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- History Section -->
-  <section id="history" class="section section-mist">
-    <div class="section-head">
-      <p class="eyebrow">Riwayat</p>
-      <h2 class="section-title">Riwayat Review</h2>
-      <p class="section-sub">Tersimpan di browser Anda. Klik untuk melihat detail.</p>
-    </div>
-    <div id="history-list" class="history-list"></div>
-    <p class="empty" id="history-empty">Belum ada riwayat. Lakukan review pertama Anda!</p>
-  </section>
-
-  <!-- How it works -->
-  <section id="how" class="section">
-    <div class="section-head">
-      <p class="eyebrow reveal reveal-s1">Cara kerja</p>
-      <h2 class="section-title reveal reveal-s2">Tiga langkah mudah</h2>
-    </div>
-    <div class="steps">
-      <div class="step reveal reveal-s3">
-        <span class="step-num">1.</span>
-        <h3>Upload CV</h3>
-        <p>Unggah CV Anda dalam format PDF atau TXT.</p>
+  <!-- History -->
+  <section id="history" class="history">
+    <div class="wrap">
+      <div class="res-head">
+        <h2>Riwayat</h2>
+        <span class="file">Tersimpan di browser ini</span>
       </div>
-      <div class="step reveal reveal-s4">
-        <span class="step-num">2.</span>
-        <h3>AI menganalisis</h3>
-        <p>AI HR specialist menilai skor, format, dan kecocokan posisi.</p>
-      </div>
-      <div class="step reveal reveal-s5">
-        <span class="step-num">3.</span>
-        <h3>Dapatkan saran</h3>
-        <p>Kekuatan, kelemahan, dan saran perbaikan yang membangun.</p>
-      </div>
+      <div id="history-list" class="history-list"></div>
+      <p class="empty" id="history-empty">Belum ada riwayat.</p>
     </div>
   </section>
 
   <!-- Footer -->
   <footer class="footer">
     <div class="footer-inner reveal reveal-s1">
-      <div class="footer-brand">HR AI REVIEW</div>
-      <p class="footer-tag">Review CV cerdas untuk karier yang lebih baik.</p>
-      <p class="footer-note">© 2026 HR AI REVIEW</p>
+      <span class="footer-brand">HR AI Review</span>
+      <span class="footer-note">© 2026</span>
     </div>
   </footer>
 
