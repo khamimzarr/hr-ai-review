@@ -697,9 +697,11 @@ function buildPdfLines(doc, text, pageWidth, fontSize) {
     lastWasBlank = false;
 
     // Nama: baris isi pertama, pendek, tanpa tanda baca kontak.
+    // Dicek SEBELUM isHeadingLine karena nama yang ditulis kapital semua
+    // ("BUDI SANTOSO") juga cocok pola heading.
     if (!firstContentSeen) {
       firstContentSeen = true;
-      const looksLikeName = line.trim().length <= 45 && !/[:@|•]/.test(line) && !isHeadingLine(line);
+      const looksLikeName = line.trim().length <= 45 && !/[:@|•]/.test(line);
       if (looksLikeName) {
         const nameSize = fontSize + 3; // 11 -> 14pt
         tokens.push({ text: line.trim(), bold: true, height: nameSize * 0.3528 * 1.35, size: nameSize });
