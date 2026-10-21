@@ -23,7 +23,7 @@ test('doGet tanpa r mengembalikan ok juga', () => {
 test('doPost action=review valid memanggil AI & return review', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: '{"score":88,"summary":"ok","strengths":["a"],"weaknesses":["b"],"suggestions":["c"],"atsKeywords":["x"],"missing":["y"],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":90}' } }]
   }));
@@ -33,8 +33,11 @@ test('doPost action=review valid memanggil AI & return review', () => {
   });
   const data = parseOutput(out);
   assert.strictEqual(data.ok, true);
-  assert.strictEqual(data.review.score, 88);
+  // skor numerik dihitung mekanis dari teks CV; roleMatch tetap dari AI
   assert.strictEqual(data.review.roleMatch, 90);
+  assert.strictEqual(typeof data.review.score, 'number');
+  assert.ok(data.review.scoreEvidence, 'evidence skor mekanis harus ikut');
+  assert.strictEqual(data.review.aiScore, 88, 'estimasi AI disimpan untuk diagnosa');
 });
 
 test('doPost menolak CV terlalu pendek', () => {
@@ -76,7 +79,7 @@ test('doPost menolak action tidak dikenal', () => {
 test('doPost mengembalikan error 500 saat AI gagal', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(500, 'Internal Server Error');
   const out = Code.doPost({
     parameter: { action: 'review' },
@@ -128,7 +131,7 @@ test('doPost menolak origin tidak di-whitelist', () => {
 test('doPost menerima origin yang di-whitelist', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: '{"score":88,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":90}' } }]
   }));
@@ -143,7 +146,7 @@ test('doPost menerima origin yang di-whitelist', () => {
 test('doPost tanpa origin tetap lewat (cron/internal)', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: '{"score":88,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":90}' } }]
   }));
@@ -167,7 +170,7 @@ test('doPost CV pendek memberi pesan scan-friendly', () => {
 test('rate limit menolak review setelah 60 request/jam', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: '{"score":88,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":90}' } }]
   }));
@@ -193,7 +196,7 @@ test('rate limit menolak review setelah 60 request/jam', () => {
 test('rate limit reset di jam berikutnya', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: '{"score":88,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":90}' } }]
   }));
@@ -212,7 +215,7 @@ test('rate limit reset di jam berikutnya', () => {
 test('doPost action=improve valid memanggil AI & return CV perbaikan', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: 'Nama: Budi\nEmail: budi@mail.com\nPengalaman: 3 tahun di web dev' } }]
   }));
@@ -257,7 +260,7 @@ test('buildImprovePrompt melarang halusinasi konten', () => {
 test('callImproveApi meneruskan missing & atsKeywords', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: 'CV diperbaiki' } }]
   }));
@@ -272,7 +275,7 @@ test('callImproveApi meneruskan missing & atsKeywords', () => {
 test('handleImprove meneruskan missing & atsKeywords ke AI', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: 'CV diperbaiki' } }]
   }));
@@ -296,7 +299,7 @@ test('handleImprove meneruskan missing & atsKeywords ke AI', () => {
 test('callImproveApi mengirim request dengan prompt improve', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: 'CV yang diperbaiki' } }]
   }));
@@ -320,7 +323,7 @@ test('doPost improve menolak CV terlalu pendek', () => {
 test('request invalid tidak consume rate limit', () => {
   UrlFetchApp._reset();
   PropertiesService._reset();
-  PropertiesService.getScriptProperties().setProperty('BYNARA_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
   UrlFetchApp._setResponse(200, JSON.stringify({
     choices: [{ message: { content: '{"score":88,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":90}' } }]
   }));
@@ -339,4 +342,38 @@ test('request invalid tidak consume rate limit', () => {
     postData: { contents: JSON.stringify({ cvText: 'CV panjang '.repeat(20), jobDesc: '' }) }
   }, FIXED_NOW);
   assert.strictEqual(parseOutput(out).ok, true, 'request valid harus sukses setelah 10 invalid');
+});
+// ---------- Kunci bersama proxy↔GAS (v17) ----------
+test('PROXY_SECRET: menolak request tanpa token yang benar', () => {
+  UrlFetchApp._reset();
+  PropertiesService._reset();
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
+  PropertiesService.getScriptProperties().setProperty('PROXY_SECRET', 'rahasia-proxy');
+  UrlFetchApp._setResponse(200, JSON.stringify({
+    choices: [{ message: { content: '{"score":88,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":90}' } }]
+  }));
+  const body = JSON.stringify({ cvText: 'CV panjang '.repeat(20), jobDesc: '' });
+
+  const noToken = parseOutput(Code.doPost({ parameter: { action: 'review' }, postData: { contents: body } }));
+  assert.strictEqual(noToken.status, 403, 'tanpa token harus 403');
+
+  const badToken = parseOutput(Code.doPost({ parameter: { action: 'review', token: 'salah' }, postData: { contents: body } }));
+  assert.strictEqual(badToken.status, 403, 'token salah harus 403');
+
+  const goodToken = parseOutput(Code.doPost({ parameter: { action: 'review', token: 'rahasia-proxy' }, postData: { contents: body } }));
+  assert.strictEqual(goodToken.ok, true, 'token benar harus lolos');
+});
+
+test('PROXY_SECRET tidak di-set = perilaku lama (tanpa token tetap jalan)', () => {
+  UrlFetchApp._reset();
+  PropertiesService._reset();
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'sk-test');
+  UrlFetchApp._setResponse(200, JSON.stringify({
+    choices: [{ message: { content: '{"score":70,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":70}' } }]
+  }));
+  const out = parseOutput(Code.doPost({
+    parameter: { action: 'review' },
+    postData: { contents: JSON.stringify({ cvText: 'CV panjang '.repeat(20), jobDesc: '' }) }
+  }));
+  assert.strictEqual(out.ok, true);
 });

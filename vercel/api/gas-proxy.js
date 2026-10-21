@@ -23,6 +23,24 @@ export default async (req, res) => {
 
     // Forward ke GAS — server-side, tidak ada CORS
     const params = new URLSearchParams({ action: act });
+
+    // Teruskan Origin pemanggil supaya whitelist ALLOWED_ORIGINS di GAS benar-benar jalan.
+    // Tanpa ini, parameter origin tidak pernah terkirim dan pengecekan di backend selalu dilewati.
+    const callerOrigin = req.headers.origin || req.headers.referer || '';
+    if (callerOrigin) {
+      try {
+        params.set('origin', new URL(callerOrigin).origin);
+      } catch (e) {
+        params.set('origin', String(callerOrigin));
+      }
+    }
+
+    // Opsional: kunci bersama proxy↔GAS. Aktif hanya kalau GAS_PROXY_SECRET di-set di Vercel
+    // DAN PROXY_SECRET di-set di GAS Script Properties. Tanpa keduanya, perilaku lama dipertahankan.
+    if (process.env.GAS_PROXY_SECRET) {
+      params.set('token', process.env.GAS_PROXY_SECRET);
+    }
+
     const gasRes = await fetch(GAS_URL + '?' + params.toString(), {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },

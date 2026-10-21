@@ -4,6 +4,36 @@
 
 ---
 
+## [v17 — Skor deterministik + pindah ke agnes-3.0-flash + retry] — 2026-10-21
+
+### Problem (semua terukur, bukan dugaan)
+- CV yang sama + jobdesc sama, 3x review via production: **78 -> 88 -> 92**. Prompt bilang "+/-3 poin", realitanya +/-14.
+- 1 dari 4 request production gagal `HTTP 429: Insufficient credits` (bynara) dan fallback ikut mati -> user dapat 500. Tidak ada retry.
+- `ALLOWED_ORIGINS` tidak pernah aktif di production: `gas-proxy.js` tidak meneruskan parameter `origin`, jadi cek whitelist selalu dilewati.
+- `sw.js` masih `CACHE = 'hr-ai-review-v2'` padahal app sudah v16 -> user lama disajikan bundle lama.
+- Model menyelipkan aksara CJK di summary Indonesia (`...yang kuat. 仍有 ruang perbaikan`).
+
+### Change
+- Provider pindah ke **agnes** (`https://apihub.agnes-ai.com/v1`): primary `agnes-3.0-flash`, fallback `agnes-2.5-flash`. Script Properties sekarang `AGNES_API_KEY` + `AGNES_BASE_URL`.
+- **Skor dihitung mekanis di kode** (`scoreCvMechanical`), bukan oleh model. Enam komponen diukur dari teks CV: kontak (regex email/telepon/LinkedIn), struktur (heading section + bullet), pencapaian (baris bermetrik), ATS (rasio keyword jobdesc), panjang (halaman dari frontend), bahasa (tetap dinilai AI, 0/3/5).
+  - Alasan: dua iterasi prompt (rubrik poin + tangga angka) tetap menghasilkan goyang 6-13 poin dan justru memicu inflasi (4 dari 5 run = 100/100). Model tidak bisa diminta konsisten untuk hal yang bisa dihitung.
+  - Hasil: 5 run dengan input identik -> **90, 90, 90, 90, 90** (spread 0).
+- **ATS pakai rasio**, bukan jumlah absolut — jobdesc pendek (4 keyword) sebelumnya mustahil dapat nilai penuh.
+- **Retry + backoff** di `callAi`: 429/5xx/timeout/response kosong diulang maks 3x (1.5s -> 3s), dibatasi `AI_BUDGET_MS = 45s` supaya tetap di bawah timeout GAS 55s dan `maxDuration` Vercel 60s. Error non-retryable (400) tidak diulang.
+- **Proxy meneruskan `origin`** ke GAS sehingga whitelist benar-benar jalan. Ditambah kunci bersama opsional `PROXY_SECRET` (GAS) <-> `GAS_PROXY_SECRET` (Vercel) — hanya aktif kalau keduanya di-set.
+- **`stripForeignScript`** membuang aksara CJK/Hangul/Kana dari summary, strengths, weaknesses, suggestions, missing.
+- **`formatCheck` divalidasi** ke nilai yang dikenal (`ok`/`needs_improvement`, `ok`/`too_long`/`too_short`, `ok`/`missing`).
+- **Rincian skor di UI** — kartu "Rincian Skor" menampilkan 6 komponen + bar, supaya skor bisa diaudit user.
+- **`sw.js` cache bump** `v2` -> `v3`.
+- **Rescore tidak lagi memaksa skor naik** — instruksi "skor HARUS lebih tinggi" dihapus (sumber inflasi); reviewer menilai apa adanya.
+- Test: **96 pass** (sebelumnya 77), termasuk test determinisme, retry, tangga bahasa, rasio ATS, dan kunci proxy.
+
+### Deploy notes
+- GAS: `clasp push -f` lalu set `AGNES_API_KEY` (Script Properties). `BYNARA_*` tidak dipakai lagi.
+- Vercel: deploy ulang `vercel/`. Opsional set `GAS_PROXY_SECRET` + `PROXY_SECRET` untuk mengunci proxy.
+
+---
+
 ## [v16 — Ganti model ke gemini-3.8-flash-high (bynara router)] — 2026-10-14
 
 ### Change

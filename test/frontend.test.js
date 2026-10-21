@@ -66,9 +66,10 @@ test('index.html tidak ada trustline palsu (4.4/5)', () => {
 
 test('install-properties.gs.example tidak hardcode API key nyata', () => {
   const install = fs.readFileSync(path.join(__dirname, '..', 'gas', 'install-properties.gs.example'), 'utf8');
-  assert.ok(!install.includes('sk-nry-'), 'API key bynara terhardcode!');
+  assert.ok(!install.includes('sk-nry-'), 'API key provider lama terhardcode!');
+  assert.ok(!install.includes('sk-'), 'API key terhardcode di example!');
   assert.ok(!install.includes('AQ.'), 'API key Gemini terhardcode!');
-  assert.ok(install.includes('YOUR_BYNARA_API_KEY'), 'placeholder tidak ada');
+  assert.ok(install.includes('YOUR_AGNES_API_KEY'), 'placeholder tidak ada');
 });
 
 test('index.html punya tombol improve', () => {
@@ -197,4 +198,29 @@ test('app.js punya scroll-reveal & score count-up', () => {
   assert.ok(APP_JS.includes('requestAnimationFrame'), 'count-up rAF missing');
   assert.ok(APP_JS.includes("(prefers-reduced-motion: reduce)"), 'reduced motion guard missing');
   assert.ok(APP_JS.includes('attachRipple'), 'attachRipple missing');
+});
+
+// ---------- Proxy: origin & kunci bersama (v17) ----------
+const PROXY_SRC = fs.readFileSync(path.join(VERCEL, 'api', 'gas-proxy.js'), 'utf8');
+
+test('gas-proxy meneruskan origin pemanggil ke GAS', () => {
+  assert.ok(PROXY_SRC.includes("params.set('origin'"), 'origin tidak diteruskan ke GAS');
+  assert.ok(PROXY_SRC.includes('req.headers.origin'), 'origin header tidak dibaca');
+});
+
+test('gas-proxy mendukung kunci bersama opsional', () => {
+  assert.ok(PROXY_SRC.includes('GAS_PROXY_SECRET'), 'env GAS_PROXY_SECRET tidak dipakai');
+  assert.ok(PROXY_SRC.includes("params.set('token'"), 'token tidak dikirim ke GAS');
+});
+
+// ---------- Rincian skor (v17) ----------
+test('index.html & app.js punya rincian skor per komponen', () => {
+  assert.ok(html.includes('breakdown-card'), 'card rincian skor missing');
+  assert.ok(html.includes('breakdown-list'), 'list rincian skor missing');
+  assert.ok(APP_JS.includes('renderBreakdown'), 'renderBreakdown missing');
+  assert.ok(APP_JS.includes('scoreBreakdown'), 'app.js tidak membaca scoreBreakdown');
+});
+
+test('app.js mengirim jumlah halaman ke backend (untuk komponen length)', () => {
+  assert.ok(APP_JS.includes('pages: currentFilePages'), 'pages tidak dikirim ke backend');
 });

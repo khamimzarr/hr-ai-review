@@ -28,6 +28,8 @@ const els = {
   scoreRingFg: $('score-ring-fg'),
   roleMatch: $('role-match'),
   formatList: $('format-list'),
+  breakdownCard: $('breakdown-card'),
+  breakdownList: $('breakdown-list'),
   summaryText: $('summary-text'),
   strengthsList: $('strengths-list'),
   weaknessesList: $('weaknesses-list'),
@@ -116,7 +118,7 @@ async function callReviewApi(cvText, jobDesc) {
   const res = await fetch(API_PROXY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'review', cvText: cvText, jobDesc: jobDesc })
+    body: JSON.stringify({ action: 'review', cvText: cvText, jobDesc: jobDesc, pages: currentFilePages })
   });
   const text = await res.text();
   if (!text || text.trim() === '') {
@@ -252,11 +254,59 @@ function renderReview(review) {
     els.atsTags.appendChild(span);
   });
 
+  renderBreakdown(review);
+
   els.downloadBtn.hidden = false;
   els.improveBtn.hidden = false;
   els.manualInputCard.hidden = false;
   els.resultSection.hidden = false;
   els.resultSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Rincian skor: skor total dihitung sistem dari komponen terukur,
+// jadi user bisa lihat dari mana angkanya datang.
+const BREAKDOWN_META = [
+  { key: 'contact', label: 'Kontak & identitas', max: 10 },
+  { key: 'structure', label: 'Struktur & layout', max: 20 },
+  { key: 'achievements', label: 'Pencapaian terukur', max: 30 },
+  { key: 'ats', label: 'Keyword ATS', max: 25 },
+  { key: 'length', label: 'Panjang CV', max: 10 },
+  { key: 'language', label: 'Ejaan & bahasa', max: 5 }
+];
+
+function renderBreakdown(review) {
+  if (!els.breakdownCard || !els.breakdownList) return;
+  const bd = review.scoreBreakdown;
+  if (!bd) {
+    els.breakdownCard.hidden = true;
+    return;
+  }
+  els.breakdownList.innerHTML = '';
+  BREAKDOWN_META.forEach((meta) => {
+    const pts = Math.max(0, Math.min(meta.max, Number(bd[meta.key]) || 0));
+    const li = document.createElement('li');
+
+    const label = document.createElement('span');
+    label.className = 'bd-label';
+    label.textContent = meta.label;
+    li.appendChild(label);
+
+    const track = document.createElement('span');
+    track.className = 'bd-track';
+    const fill = document.createElement('i');
+    fill.className = 'bd-fill';
+    fill.style.width = Math.round((pts / meta.max) * 100) + '%';
+    track.appendChild(fill);
+    li.appendChild(track);
+
+    const num = document.createElement('span');
+    num.className = 'bd-pts';
+    num.textContent = pts + '/' + meta.max;
+    li.appendChild(num);
+
+    els.breakdownList.appendChild(li);
+  });
+  els.breakdownCard.hidden = false;
 }
 
 function fillList(ul, items) {
@@ -493,7 +543,8 @@ async function runRescore() {
         action: 'review',
         cvText: text,
         jobDesc: currentJobDesc,
-        appliedSuggestions: appliedSuggestions
+        appliedSuggestions: appliedSuggestions,
+        pages: currentFilePages
       })
     });
     const rescoreText = await res.text();
