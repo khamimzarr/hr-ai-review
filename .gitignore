@@ -23,3 +23,4 @@ test/*_probe.json
 test/*_diag.json
 api_tests/
 AUDIT-REPORT.md
+.vercel
