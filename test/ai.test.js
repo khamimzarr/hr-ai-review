@@ -309,3 +309,58 @@ test('provider terakhir dapat timeout lebih longgar dari provider pertama', () =
     UrlFetchApp.fetch = realFetch;
   }
 });
+
+// ---------- Kontak karangan AI (v18) ----------
+test('stripInventedContactLines membuang LinkedIn placeholder', () => {
+  const input = [
+    'Budi Santoso',
+    'Email: budi@mail.com',
+    'Telepon: 0812-3456-7890',
+    'LinkedIn: [Tautan LinkedIn Budi Santoso]',
+    '',
+    'RINGKASAN PROFIL',
+    'Software engineer.'
+  ].join('\n');
+  const r = Code.stripInventedContactLines(input);
+  assert.strictEqual(r.removed, 1);
+  assert.ok(!/linkedin/i.test(r.text), 'baris LinkedIn placeholder harus hilang');
+  assert.ok(r.text.includes('budi@mail.com'), 'email asli harus tetap ada');
+  assert.ok(r.text.includes('RINGKASAN PROFIL'), 'section lain tidak boleh ikut hilang');
+});
+
+test('stripInventedContactLines membuang nilai kosong dan tanda hubung', () => {
+  const cases = ['LinkedIn: -', 'GitHub:', 'Portfolio: —', 'Website: xxx', 'LinkedIn: TBD', 'Portfolio: (isi sendiri)'];
+  cases.forEach((line) => {
+    const r = Code.stripInventedContactLines('Budi\n' + line + '\nEmail: a@b.com');
+    assert.strictEqual(r.removed, 1, 'harus dibuang: ' + line);
+    assert.ok(!r.text.includes(line.split(':')[0]), 'masih ada: ' + line);
+  });
+});
+
+test('stripInventedContactLines MEMPERTAHANKAN tautan yang benar-benar ada', () => {
+  const real = [
+    'LinkedIn: linkedin.com/in/budisantoso',
+    'GitHub: https://github.com/budi',
+    'Portfolio: www.budi.dev',
+    'Email: budi@mail.com'
+  ];
+  real.forEach((line) => {
+    const r = Code.stripInventedContactLines('Budi\n' + line);
+    assert.strictEqual(r.removed, 0, 'tidak boleh dibuang: ' + line);
+    assert.ok(r.text.includes(line), 'harus dipertahankan: ' + line);
+  });
+});
+
+test('stripInventedContactLines tidak menyentuh baris non-kontak', () => {
+  const input = 'PENGALAMAN KERJA\nMemimpin tim 6 orang\n• Meningkatkan performa 40%';
+  const r = Code.stripInventedContactLines(input);
+  assert.strictEqual(r.removed, 0);
+  assert.strictEqual(r.text, input);
+});
+
+test('buildImprovePrompt melarang baris kontak karangan', () => {
+  const p = Code.buildImprovePrompt('CV', 'Dev', { suggestions: [], weaknesses: [], missing: [], atsKeywords: [], score: 50 });
+  assert.ok(p.includes('ATURAN KONTAK'), 'aturan kontak tidak ada di prompt');
+  assert.ok(p.includes('placeholder'), 'larangan placeholder tidak ada');
+  assert.ok(p.includes('[Tautan LinkedIn]'), 'contoh placeholder tidak disebut');
+});

@@ -163,6 +163,14 @@ function buildImprovePrompt(cvText, jobDesc, reviewContext) {
     '═══ ATS KEYWORDS (pertahankan & tambahkan variasi yang relevan) ═══',
     kwList || 'Tidak disebutkan.',
     '',
+    '═══ ATURAN KONTAK (SANGAT PENTING) ═══',
+    'Baris kontak di bagian atas CV HANYA boleh berisi informasi yang BENAR-BENAR ADA di CV asli atau di INPUT MANUAL USER.',
+    '- LinkedIn / portfolio / website / GitHub: tulis HANYA jika alamatnya benar-benar disebut di CV asli atau INPUT MANUAL.',
+    '  Kalau tidak ada, JANGAN tulis baris itu sama sekali. Jangan tulis "LinkedIn:", "LinkedIn: -", "LinkedIn: [Tautan LinkedIn]", atau tautan karangan apa pun.',
+    '- Email dan telepon: sama. Kalau tidak ada di CV asli dan tidak ada di INPUT MANUAL, jangan dikarang.',
+    '- DILARANG membuat placeholder dalam bentuk apa pun: [Tautan ...], [Link ...], [URL ...], [Username ...], xxx, TBD, (isi sendiri).',
+    '  Lebih baik baris kontak HILANG daripada berisi placeholder — CV dengan placeholder terlihat tidak profesional.',
+    '',
     '═══ PERMISSION MATRIX ═══',
     'BOLEH (tujuannya untuk naikkan skor):',
     '- ✅ Rewrite struktur: ubah urutan section, tambah heading, gunakan bullet points untuk pencapaian',
@@ -181,6 +189,7 @@ function buildImprovePrompt(cvText, jobDesc, reviewContext) {
     '- ❌ JANGAN menambah sertifikasi, pengalaman kerja, atau pendidikan yang TIDAK ada di CV asli (konten palsu dilarang)',
     '- ❌ JANGAN berhalusinasi angka/metrik yang tidak ada dasarnya di teks CV (jika tidak ada data, biarkan generik)',
     '- ❌ JANGAN tambah boilerplate: "Referensi tersedia atas permintaan", "Saya adalah individu yang motivasi tinggi", dll',
+    '- ❌ JANGAN menambah baris kontak (LinkedIn, portfolio, website, GitHub) yang tidak ada di CV asli atau INPUT MANUAL, termasuk dalam bentuk placeholder seperti "[Tautan LinkedIn]".',
     '- ❌ JANGAN ubah nama orang, nama perusahaan, atau institusi pendidikan',
     '- ❌ JANGAN gunakan garis pembatas seperti ---, ***, ===, ───, ═══, atau karakter unicode garis lainnya. Pisahkan section cukup dengan baris kosong + heading KAPITAL.',
     '- ❌ JANGAN gunakan markdown formatting (**bold**, ## heading, dll). Output HANYA plain text.',
@@ -335,6 +344,38 @@ function callAi(messages, temperature, useJsonFormat) {
   throw new Error('Agnes API gagal. ' + errors.join(' | '));
 }
 
+// Baris kontak yang dikarang AI: "LinkedIn: [Tautan LinkedIn Budi", "GitHub: -", "Portfolio: xxx".
+// Prompt sudah melarang, tapi model tetap bisa melakukannya — jadi dibuang di kode.
+// Hanya baris yang JELAS placeholder/kosong yang dibuang; URL asli dibiarkan.
+var CONTACT_LINE_RE = /^\s*(linkedin|linkedin\s*url|portfolio|portofolio|website|web|blog|github|gitlab|instagram|twitter|x|facebook|behance|dribbble|medium|link|url|tautan)\s*[:\-–]\s*(.*)$/i;
+var PLACEHOLDER_RE = /\[[^\]]{0,60}\]|\([^)]{0,40}(isi|tulis|masukkan|tautan|link)[^)]{0,40}\)|^[-–—_.]{1,3}$|^(xxx+|tbd|n\/a|na|-|—|\.\.\.|…)$/i;
+// Alamat nyata: URL lengkap, www., domain polos (linkedin.com/in/x), atau email/handle.
+var URL_LIKE_RE = /(https?:\/\/|www\.)\S+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?:\/\S*)?|@[a-z0-9._-]+\.[a-z]{2,}/i;
+
+function stripInventedContactLines(text) {
+  var lines = String(text || '').split(/\r?\n/);
+  var kept = [];
+  var removed = 0;
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var m = line.match(CONTACT_LINE_RE);
+    if (!m) { kept.push(line); continue; }
+
+    var value = (m[2] || '').trim();
+    var looksReal = URL_LIKE_RE.test(value);
+
+    // Buang kalau nilainya kosong, placeholder, atau tidak mengandung alamat sama sekali.
+    if (!value || PLACEHOLDER_RE.test(value) || !looksReal) {
+      removed++;
+      continue;
+    }
+    kept.push(line);
+  }
+
+  return { text: kept.join('\n').replace(/\n{3,}/g, '\n\n').trim(), removed: removed };
+}
+
 function callImproveApi(cvText, jobDesc, reviewContext) {
   const messages = [
     { role: 'system', content: DATE_CONTEXT + ' Kamu adalah asisten HR specialist senior yang membantu pelamar memperbaiki CV agar lebih kompetitif. Selalu output dalam bahasa Indonesia formal. Target: naikkan skor CV minimal 10 poin dari skor awal. PENTING: JANGAN berhalusinasi. Hanya gunakan informasi yang ada di CV asli atau yang user berikan di INPUT MANUAL. Jangan tambah sertifikasi, pengalaman, atau pendidikan palsu. BOLEH rewrite struktur, tambah section heading, bullet points, dan variasi keyword ATS yang relevan. PENTING: Output HANYA plain text. DILARANG pakai garis pembatas (---, ***, ===, ───, ═══), markdown (**bold**, ##), atau emoji. Pisahkan section dengan baris kosong + heading KAPITAL. Gunakan bullet point “•” untuk list.' },
@@ -358,7 +399,11 @@ function callImproveApi(cvText, jobDesc, reviewContext) {
   
   // Hapus markdown heading (## text -> text)
   content = content.replace(/^#{1,6}\s+/gm, '');
-  
+
+  // Buang baris kontak karangan/placeholder (LinkedIn, portfolio, dll) yang tidak
+  // benar-benar ada di CV asli atau input manual user.
+  content = stripInventedContactLines(content).text;
+
   return content.trim();
 }
 
@@ -801,6 +846,7 @@ if (typeof module !== 'undefined') {
     parseAiResponse,
     normalizeReview,
     stripForeignScript,
+    stripInventedContactLines,
     scoreCvMechanical,
     applyMechanicalScore,
     countKeywordHits,

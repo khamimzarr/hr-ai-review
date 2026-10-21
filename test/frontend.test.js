@@ -224,3 +224,35 @@ test('index.html & app.js punya rincian skor per komponen', () => {
 test('app.js mengirim jumlah halaman ke backend (untuk komponen length)', () => {
   assert.ok(APP_JS.includes('pages: currentFilePages'), 'pages tidak dikirim ke backend');
 });
+
+// ---------- PDF Calibri-compatible + anti-orphan (v18) ----------
+test('app.js memakai font Calibri-compatible 11pt untuk PDF', () => {
+  assert.ok(APP_JS.includes("family: 'Carlito'"), 'font family Carlito tidak diset');
+  assert.ok(APP_JS.includes('size: 11'), 'ukuran 11pt tidak diset');
+  assert.ok(APP_JS.includes('/fonts/Carlito-Regular.ttf'), 'path font regular missing');
+  assert.ok(APP_JS.includes('/fonts/Carlito-Bold.ttf'), 'path font bold missing');
+  assert.ok(!APP_JS.includes("setFont('helvetica'"), 'masih memakai helvetica bawaan jsPDF');
+});
+
+test('file font Carlito ada dan berukuran wajar', () => {
+  ['Carlito-Regular.ttf', 'Carlito-Bold.ttf', 'OFL.txt'].forEach((f) => {
+    const p = path.join(VERCEL, 'fonts', f);
+    assert.ok(fs.existsSync(p), 'font hilang: ' + f);
+  });
+  const reg = fs.statSync(path.join(VERCEL, 'fonts', 'Carlito-Regular.ttf')).size;
+  assert.ok(reg > 50000 && reg < 400000, 'ukuran font regular tidak wajar: ' + reg);
+});
+
+test('PDF punya anti-orphan untuk heading', () => {
+  assert.ok(APP_JS.includes('MIN_AFTER_HEADING'), 'anti-orphan missing');
+});
+
+test('nama di CV dibuat lebih besar dari body', () => {
+  assert.ok(APP_JS.includes('fontSize + 3'), 'nama tidak dibesarkan');
+  assert.ok(APP_JS.includes('looksLikeName'), 'deteksi baris nama missing');
+});
+
+test('download PDF menangani kegagalan font', () => {
+  assert.ok(APP_JS.includes('Gagal membuat PDF'), 'tidak ada penanganan error font');
+  assert.ok(APP_JS.includes('loadPdfFonts'), 'loader font missing');
+});
