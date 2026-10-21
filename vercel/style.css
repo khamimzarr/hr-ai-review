@@ -498,3 +498,65 @@ a { color: inherit; text-decoration: none; }
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.18); color: var(--color-signal-blue); }
 }
+
+/* ---------- Rincian skor (v17) ---------- */
+.breakdown-note {
+  font-size: 13px;
+  color: var(--color-fog);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.breakdown-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.breakdown-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.breakdown-list .bd-label {
+  flex: 1;
+  color: var(--color-ink);
+}
+
+.breakdown-list .bd-track {
+  width: 64px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-mist);
+  overflow: hidden;
+  flex: none;
+}
+
+.breakdown-list .bd-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--color-signal-blue);
+  animation: bdGrow 0.6s ease both;
+}
+
+.breakdown-list .bd-pts {
+  width: 46px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-fog);
+  font-size: 13px;
+  flex: none;
+}
+
+@keyframes bdGrow {
+  from { transform: scaleX(0); transform-origin: left; }
+  to { transform: scaleX(1); transform-origin: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breakdown-list .bd-fill { animation: none; }
+}

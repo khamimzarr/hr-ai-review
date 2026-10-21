@@ -1,6 +1,6 @@
 # HANDOFF — HR AI REVIEW
 
-> Web app review CV dengan AI (bynara agnes-2.5-flash).
+> Web app review CV dengan AI (agnes-3.0-flash).
 
 ## Setup Backend (GAS)
 
@@ -16,8 +16,11 @@ clasp deploy --description "v1"
 Setelah deploy pertama, buka URL deployment di browser untuk authorize.
 Lalu set Script Properties (Project Settings → Script Properties atau copy `install-properties.gs.example` ke `install-properties.gs` lalu jalankan):
 
-- `BYNARA_API_KEY` = sk-nry-... (dari ~/.pi/agent/models.json, provider bynara)
-- `BYNARA_BASE_URL` = https://router.bynara.id/v1
+- `AGNES_API_KEY` = API key provider `agnes` (config Hermes)
+- `AGNES_BASE_URL` = https://apihub.agnes-ai.com/v1
+
+Opsional (mengunci proxy):
+- `PROXY_SECRET` = string acak; set juga `GAS_PROXY_SECRET` di env Vercel dengan nilai sama.
 
 ## Setup Frontend (Vercel)
 
@@ -33,7 +36,7 @@ Lalu set Script Properties (Project Settings → Script Properties atau copy `in
 
 ```bash
 # Backend
-npm test && clasp push -f && clasp deploy --description "v8-security"
+npm test && clasp push -f && clasp deploy --description "v17-agnes"
 
 # Frontend
 cd vercel && vercel deploy --prod

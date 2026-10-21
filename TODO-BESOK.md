@@ -1,13 +1,15 @@
 # STATUS — HR AI REVIEW
 
-> Update: 2026-10-14 · Status: **v16 (bynara gemini-3.8-flash-high)**
+> Update: 2026-10-21 · Status: **v17 (agnes-3.0-flash + skor deterministik)**
 
 ## ✅ State Saat Ini (v16)
 
-- **Provider: bynara 100%** — model `gemini-3.8-flash-high` (primary) → `agnes-2.5-flash` (fallback)
-- `BYNARA_API_KEY` & `BYNARA_BASE_URL` tetap menggunakan Script Properties yang sama
+- **Provider: agnes** — `agnes-3.0-flash` (primary) → `agnes-2.5-flash` (fallback) via `https://apihub.agnes-ai.com/v1`
+- Script Properties: `AGNES_API_KEY`, `AGNES_BASE_URL` (bynara sudah tidak dipakai)
 - `DATE_CONTEXT` tetap aktif di prompt review & improve
-- **77/77 test pass**
+- **96/96 test pass**
+- **Skor dihitung mekanis** dari teks CV (`scoreCvMechanical`), bukan oleh model → deterministik
+- Retry 3x + backoff untuk 429/5xx, dibatasi 45s
 
 ## 🔑 Setup Ulang (jika ganti project)
 
@@ -15,9 +17,9 @@
 cd ~/hr-ai-review
 # 1. Backend
 clasp push -f
-clasp deploy -i <DEPLOYMENT_ID> -d "vX-bynara"
+clasp deploy -i <DEPLOYMENT_ID> -d "v17-agnes"
 # 2. Set key: copy gas/install-properties.gs.example → gas/install-properties.gs,
-#    isi key dari ~/.pi/agent/models.json (provider bynara), lalu jalankan
+#    isi AGNES_API_KEY (provider `agnes` di config Hermes), lalu jalankan
 #    fungsi installProperties() sekali di GAS editor (atau via proxy bootstrap sementara)
 # 3. Frontend
 cd vercel && vercel deploy --prod
@@ -28,5 +30,7 @@ cd vercel && vercel deploy --prod
 
 - `gas/install-properties.gs` **gitignored** (berisi API key) — jangan commit.
 - `api_tests/`, `*.bak`, `.env*` juga gitignored.
-- AUDIT-REPORT.md Issue #1 (purge key bynara dari git history) sudah tidak relevan
+- AUDIT-REPORT.md Issue #1 (purge key dari git history) sudah tidak relevan
   karena key sekarang hanya di Script Properties + file gitignored.
+- Skor TIDAK lagi berasal dari model. Kalau ingin mengubah bobot komponen, edit
+  `scoreCvMechanical` di `gas/Code.gs` — bukan prompt.

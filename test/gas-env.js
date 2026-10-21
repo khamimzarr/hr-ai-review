@@ -42,6 +42,14 @@ global.PropertiesService = {
   _reset() { this._props = {}; }
 };
 
+// Utilities: mock sleep (retry backoff tidak perlu benar-benar menunggu di test)
+if (!global.Utilities) {
+  global.Utilities = {
+    sleep(ms) { this._slept = (this._slept || 0) + ms; },
+    _reset() { this._slept = 0; }
+  };
+}
+
 // ContentService: capture text output
 global.ContentService = {
   MimeType: { JSON: 'application/json', TEXT: 'text/plain' },

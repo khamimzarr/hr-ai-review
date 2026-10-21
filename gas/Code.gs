@@ -1,6 +1,6 @@
 // HR AI REVIEW — Backend GAS
 // Endpoint: doGet (health), doPost (action=review)
-// AI: bynara router (OpenAI-compatible), model gemini-3.8-flash-high
+// AI: agnes apihub (OpenAI-compatible), model agnes-3.0-flash
 
 // ---------- Temperature Config ----------
 // Review: 0.2 (konsisten, rubrik scoring ketat — hindari fluktuasi skor antar rescore)
@@ -15,7 +15,7 @@ var DATE_CONTEXT = 'KONTEKS WAKTU: Saat ini adalah tahun 2026. Anggap SELURUH ri
 // ---------- System Prompt (Reviewer) ----------
 function buildSystemPrompt(appliedSuggestions) {
   var rubrik = [
-    'RUBRIK PENILAIAN (gunakan untuk menentukan score 0-100):',
+    'RUBRIK PENILAIAN — BAND SKOR TOTAL (untuk kalibrasi kasar, BUKAN untuk menilai langsung):',
     '- 0-20: CV tidak terbaca / hampir kosong / tidak ada struktur.',
     '- 21-40: CV sangat lemah — struktur kacau, tidak ada kontak, banyak typo, tidak relevan.',
     '- 41-55: CV lemah — ada struktur dasar tapi banyak kelemahan (missing kontak, tanpa ringkasan, pencapaian tidak terkuantifikasi, layout berantakan).',
@@ -23,16 +23,28 @@ function buildSystemPrompt(appliedSuggestions) {
     '- 71-85: CV baik — struktur rapi, pencapaian dikuantifikasi, keyword ATS relevan, kontak lengkap, panjang ideal. Ada sedikit ruang perbaikan.',
     '- 86-100: CV sangat baik/sangat kompetitif — semua elemen profesional, pencapaian spesifik & terukur, keyword ATS lengkap, layout sempurna.',
     '',
-    'PANDUAN PENILAIAN PER KATEGORI:',
-    '- Kontak & identitas: Ada nama, email, telepon, LinkedIn/portfolio? (-10 jika tidak ada email/telepon)',
-    '- Struktur & layout: Section terurut (Ringkasan → Pengalaman → Pendidikan → Skill)? Bullet points rapi? (-10 jika paragraf tebal tanpa bullet)',
-    '- Pencapaian & metrik: Apakah pencapaian dikuantifikasi (mis. "meningkatkan conversion 30%", "mengejar 50K pengguna")? (-15 jika semua pencapaian generik tanpa angka)',
-    '- Relevansi & keyword ATS: Apakah ada keyword industri yang relevan dengan posisi yang dilamar? (-10 jika keyword ATS minim)',
-    '- Panjang CV: 1-2 halaman ideal. >2 halaman = too_long (-5), <1 halaman dengan konten minim = too_short (-5)',
-    '- Tata bahasa & ejaan: Ada typo/grammar error signifikan? (-5 hingga -10)',
+    'CARA MENILAI:',
+    'Skor final dihitung OTOMATIS oleh sistem dari teks CV (kontak, struktur, metrik pencapaian, keyword ATS, panjang).',
+    'Kamu TIDAK perlu menghitung poin per komponen — kamu cukup menilai isi CV, memberi saran spesifik, dan menandai masalah ejaan.',
+    'Daftar komponen di bawah adalah acuan supaya saranmu selaras dengan yang diukur sistem:',
     '',
-    'WAJIB konsisten: CV yang sama harus mendapat skor yang sama (±3 poin) setiap kali di-review.',
-    'Jika CV sudah diperbaiki dari saran sebelumnya, skor HARUS lebih tinggi dari sebelumnya.'
+    '1. contact — pilih SALAH SATU dari {0, 4, 8, 10}. Nama + email + telepon + (LinkedIn/portfolio).',
+    '   10 = keempatnya ada. 8 = tidak ada LinkedIn/portfolio. 4 = tidak ada email ATAU tidak ada telepon. 0 = tidak ada keduanya.',
+    '2. structure — pilih SALAH SATU dari {5, 10, 16, 20}. Urutan section (Ringkasan → Pengalaman → Pendidikan → Skill), heading, bullet points.',
+    '   20 = semua section lengkap & terurut, isi bullet rapi. 16 = satu section tidak ada atau urutannya kacau. 10 = paragraf tebal tanpa bullet. 5 = tidak ada section sama sekali.',
+    '3. achievements — pilih SALAH SATU dari {12, 18, 24, 30}. Pencapaian terkuantifikasi (angka, persen, jumlah pengguna, skala tim).',
+    '   30 = hampir semua pencapaian punya angka. 24 = sebagian besar punya angka. 18 = hanya sedikit yang punya angka. 12 = tidak ada satu pun angka.',
+    '4. ats — pilih SALAH SATU dari {5, 12, 20, 25}. Keyword industri/hard skill yang relevan dengan posisi yang dilamar.',
+    '   25 = ≥8 keyword relevan. 20 = 5-7 keyword. 12 = ≤4 keyword. 5 = tidak ada keyword relevan.',
+    '5. length — pilih SALAH SATU dari {5, 10}. 10 = 1-2 halaman penuh. 5 = lebih dari 2 halaman, atau di bawah 1 halaman dengan konten minim.',
+    '6. language — pilih SALAH SATU dari {0, 3, 5}. 5 = tidak ada typo/ejaan salah. 3 = ada beberapa typo. 0 = banyak typo.',
+    '',
+    'PENTING: poin harus diambil dari daftar angka di atas. Jangan memakai angka antara (mis. 19, 27, 22).',
+    'Batas maksimal di atas bersifat KERAS dan tidak boleh dilanggar.',
+    'Tie-break: kalau ragu antara dua angka, pilih angka YANG LEBIH RENDAH. Ragu = tanda bukti belum cukup kuat.',
+    'Jangan menaikkan poin supaya CV terasa "pantas" dapat skor tinggi — poin mengikuti bukti di teks, bukan kesan.',
+    'WAJIB konsisten: CV yang sama harus mendapat poin yang sama pada setiap komponen (±1 poin per komponen), sehingga skor total stabil ±3 poin setiap kali di-review.',
+    'Jangan menurunkan poin karena selera pribadi (mis. tidak suka desainnya) — hanya karena bukti di teks.'
   ].join('\n');
 
   var appliedPart = '';
@@ -43,10 +55,12 @@ function buildSystemPrompt(appliedSuggestions) {
       'CV ini sudah diperbaiki berdasarkan saran berikut:',
       appliedSuggestions.map(function(s, i) { return (i + 1) + '. ' + s; }).join('\n'),
       '',
-      'Tugas Anda: Nilai CV yang sudah diperbaiki ini dengan rubrik yang SAMA dengan review sebelumnya.',
-      'Jika saran di atas sudah diterapkan dengan baik, skor HARUS lebih tinggi dari sebelumnya.',
+      'Tugas Anda: Nilai CV yang sudah diperbaiki ini dengan rubrik yang SAMA, komponen per komponen, seperti review pertama.',
+      'Nilai apa adanya berdasarkan isi CV yang sekarang. Jangan menaikkan poin karena CV ini "versi perbaikan".',
+      'Jika saran di atas benar-benar sudah diterapkan dan terlihat di teks CV, poin komponen terkait akan naik dengan sendirinya.',
+      'Jika saran belum diterapkan, poin boleh tetap atau turun — itu informasi yang berguna, bukan kegagalan.',
       'JANGAN ulang saran yang sudah diterapkan di suggestions[] — berikan saran baru untuk perbaikan lebih lanjut.',
-      'Jika saran belum diterapkan, tetap masukkan ke suggestions[] danjelaskan di summary.'
+      'Jika saran belum diterapkan, tetap masukkan ke suggestions[] dan jelaskan di summary.'
     ].join('\n');
   }
 
@@ -61,7 +75,9 @@ function buildSystemPrompt(appliedSuggestions) {
     '',
     'WAJIB mengembalikan hasil dalam format JSON MURNI (tanpa markdown, tanpa teks lain) dengan struktur:',
     '{',
-    '  "score": <angka 0-100 sesuai rubrik di atas>,',
+    '  "languageScore": <0, 3, atau 5 — 5 = tidak ada typo, 3 = ada beberapa typo, 0 = banyak typo>,',
+    '  "languageNote": "<typo/ejaan yang ditemukan; string kosong jika tidak ada>",',
+    '  "score": <estimasi kasar 0-100 menurutmu; angka FINAL dihitung sistem>,',
     '  "summary": "<ringkasan CV dalam 2-3 kalimat, bahasa Indonesia, sebutkan jika ada perbaikan dari versi sebelumnya>",',
     '  "strengths": ["<kekuatan 1>", "<kekuatan 2>"],',
     '  "weaknesses": ["<kelemahan 1>", "<kelemahan 2>"],',
@@ -73,6 +89,8 @@ function buildSystemPrompt(appliedSuggestions) {
     '}',
     '',
     'Aturan:',
+    '- Skor final TIDAK kamu tentukan: sistem menghitungnya dari komponen terukur (kontak, struktur, metrik, ATS, panjang). Tugasmu menilai isi dan memberi saran.',
+    '- languageScore WAJIB salah satu dari 0, 3, atau 5. Jangan pakai angka lain.',
     '- Seluruh teks (summary, strengths, weaknesses, suggestions, missing) dalam bahasa Indonesia.',
     '- strength/weakness/suggestion masing-masing 2-5 item, ringkas dan spesifik.',
     '- atsKeywords: kata kunci industri yang DITEMUKAN di CV (misal: "JavaScript", "manajemen proyek").',
@@ -189,18 +207,36 @@ function buildImprovePrompt(cvText, jobDesc, reviewContext) {
   ].join('\n');
 }
 
-// ---------- AI Provider Helper (bynara router) ----------
-// Primary: bynara gemini-3.8-flash-high → bynara agnes-2.5-flash (fallback)
+// ---------- AI Provider Helper (agnes apihub) ----------
+// Primary: agnes-3.0-flash → agnes-2.5-flash (fallback), endpoint apihub.agnes-ai.com
+//
+// Retry policy: 429 / 5xx / timeout / response kosong diulang maks 3x dengan backoff
+// 1.5s lalu 3s. Dibatasi AI_BUDGET_MS supaya total kerja tetap di bawah
+// timeoutSeconds GAS (55s) dan maxDuration Vercel (60s).
+var AI_MAX_ATTEMPTS = 3;
+var AI_RETRY_BASE_MS = 1500;
+var AI_BUDGET_MS = 45000;
+
+function sleepMs(ms) {
+  if (typeof Utilities !== 'undefined' && Utilities.sleep) {
+    Utilities.sleep(ms);
+    return;
+  }
+  // Lingkungan test (Node) tidak punya Utilities — tidak perlu benar-benar menunggu.
+  if (typeof console !== 'undefined' && console.log) console.log('[sleep] ' + ms + 'ms dilewati di test');
+}
+
 function callAi(messages, temperature, useJsonFormat) {
   var props = PropertiesService.getScriptProperties();
-  var bynaraKey = props.getProperty('BYNARA_API_KEY');
-  var bynaraBase = props.getProperty('BYNARA_BASE_URL') || 'https://router.bynara.id/v1';
+  var agnesKey = props.getProperty('AGNES_API_KEY');
+  var agnesBase = props.getProperty('AGNES_BASE_URL') || 'https://apihub.agnes-ai.com/v1';
 
-  if (!bynaraKey) {
-    throw new Error('BYNARA_API_KEY belum di-set di Script Properties');
+  if (!agnesKey) {
+    throw new Error('AGNES_API_KEY belum di-set di Script Properties');
   }
 
   var errors = [];
+  var startedAt = Date.now();
 
   var basePayload = {
     messages: messages,
@@ -222,38 +258,62 @@ function callAi(messages, temperature, useJsonFormat) {
   };
 
   function tryProvider(name, baseUrl, apiKey, modelName) {
-    var payload = JSON.parse(JSON.stringify(basePayload));
-    payload.model = modelName;
-    options.payload = JSON.stringify(payload);
-    options.headers.Authorization = 'Bearer ' + apiKey;
-    try {
-      var res = UrlFetchApp.fetch(baseUrl + '/chat/completions', options);
-      var code = res.getResponseCode();
-      var body = res.getContentText();
-      if (code === 200) {
-        var data = JSON.parse(body);
-        var content = data.choices && data.choices[0] && data.choices[0].message
-          ? data.choices[0].message.content : '';
-        if (content) return content;
+    for (var attempt = 1; attempt <= AI_MAX_ATTEMPTS; attempt++) {
+      // Jangan mulai percobaan baru kalau sisa waktu tidak cukup —
+      // lebih baik fallback ke provider lain daripada dipotong proxy Vercel.
+      if (Date.now() - startedAt > AI_BUDGET_MS) {
+        errors.push(name + ': budget waktu habis, percobaan dilewati');
+        return false;
       }
-      errors.push(name + ' HTTP ' + code + ': ' + body.slice(0, 120));
-    } catch (e) {
-      errors.push(name + ': ' + e.message);
+
+      var payload = JSON.parse(JSON.stringify(basePayload));
+      payload.model = modelName;
+      options.payload = JSON.stringify(payload);
+      options.headers.Authorization = 'Bearer ' + apiKey;
+
+      var retryable = false;
+      try {
+        var res = UrlFetchApp.fetch(baseUrl + '/chat/completions', options);
+        var code = res.getResponseCode();
+        var body = res.getContentText();
+        if (code === 200) {
+          var data = JSON.parse(body);
+          var content = data.choices && data.choices[0] && data.choices[0].message
+            ? data.choices[0].message.content : '';
+          if (content) return content;
+          retryable = true; // 200 tapi kosong — layak dicoba sekali lagi
+          errors.push(name + ' (percobaan ' + attempt + '): response kosong');
+        } else {
+          retryable = (code === 429 || code >= 500);
+          errors.push(name + ' HTTP ' + code + ' (percobaan ' + attempt + '): ' + body.slice(0, 120));
+        }
+      } catch (e) {
+        retryable = true; // timeout / network — biasanya sementara
+        errors.push(name + ' (percobaan ' + attempt + '): ' + e.message);
+      }
+
+      if (!retryable || attempt === AI_MAX_ATTEMPTS) return false;
+      // backoff 1.5s → 3s
+      if (Date.now() - startedAt + AI_RETRY_BASE_MS * Math.pow(2, attempt - 1) > AI_BUDGET_MS) {
+        errors.push(name + ': sisa waktu tidak cukup untuk retry');
+        return false;
+      }
+      sleepMs(AI_RETRY_BASE_MS * Math.pow(2, attempt - 1));
     }
     return false;
   }
 
   var result;
 
-  // 1. bynara gemini-3.8-flash-high (primary)
-  result = tryProvider('gemini-3.8-flash-high', bynaraBase, bynaraKey, 'gemini-3.8-flash-high');
+  // 1. agnes-3.0-flash (primary)
+  result = tryProvider('agnes-3.0-flash', agnesBase, agnesKey, 'agnes-3.0-flash');
   if (result) return result;
 
-  // 2. bynara agnes-2.5-flash (fallback)
-  result = tryProvider('agnes-2.5', bynaraBase, bynaraKey, 'agnes-2.5-flash');
+  // 2. agnes-2.5-flash (fallback)
+  result = tryProvider('agnes-2.5-flash', agnesBase, agnesKey, 'agnes-2.5-flash');
   if (result) return result;
 
-  throw new Error('Bynara API gagal. ' + errors.join(' | '));
+  throw new Error('Agnes API gagal. ' + errors.join(' | '));
 }
 
 function callImproveApi(cvText, jobDesc, reviewContext) {
@@ -284,7 +344,7 @@ function callImproveApi(cvText, jobDesc, reviewContext) {
 }
 
 // ---------- AI Call (bynara) ----------
-function callAiApi(cvText, jobDesc, appliedSuggestions) {
+function callAiApi(cvText, jobDesc, appliedSuggestions, pages) {
   const messages = [
     { role: 'system', content: buildSystemPrompt(appliedSuggestions || []) },
     { role: 'user', content: buildUserPrompt(cvText, jobDesc) }
@@ -292,7 +352,9 @@ function callAiApi(cvText, jobDesc, appliedSuggestions) {
 
   const content = callAi(messages, REVIEW_TEMPERATURE, true);
   if (!content) throw new Error('AI response kosong / tidak valid');
-  return parseAiResponse(content);
+  // parseAiResponse() menormalkan teks & menilai bahasa; skor numerik dihitung
+  // ulang secara mekanis dari isi CV supaya hasil untuk teks yang sama selalu sama.
+  return applyMechanicalScore(parseAiResponse(content), cvText, jobDesc, pages);
 }
 
 // ---------- Parse Response ----------
@@ -320,28 +382,222 @@ function parseAiResponse(rawText) {
   }
 }
 
+// Komponen ejaan/bahasa: satu-satunya bagian yang tetap dinilai model.
+var LANGUAGE_STEPS = [0, 3, 5];
+
+// Tempelkan nilai ke angka terdekat yang sah. Kalau seri, ambil yang lebih rendah —
+// kebijakan konservatif ini yang membuat skor tidak goyang saat model ragu.
+function snapToSteps(v, steps) {
+  var best = steps[0];
+  var bestDist = Infinity;
+  for (var i = 0; i < steps.length; i++) {
+    var d = Math.abs(steps[i] - v);
+    if (d < bestDist - 1e-9) { bestDist = d; best = steps[i]; }
+  }
+  return best;
+}
+
+// Model kadang menyelipkan karakter dari aksara lain (CJK/Hangul/Kana) di tengah teks Indonesia.
+// Buang aksaranya, sisakan teks Indonesia — lebih baik daripada summary campur bahasa.
+function stripForeignScript(s) {
+  return String(s || '')
+    .replace(/[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uac00-\ud7af\uff00-\uffef]/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .trim();
+}
+
 function normalizeReview(obj) {
-  const arr = (v) => Array.isArray(v) ? v.map(String) : [];
+  const arr = (v) => (Array.isArray(v) ? v.map(function (s) { return stripForeignScript(s); }).filter(Boolean) : []);
   const num = (v, fallback) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : fallback;
   };
   const fc = obj.formatCheck || {};
+
+  // Skor dari AI hanya estimasi (dipakai untuk diagnosa). Skor final dihitung
+  // ulang secara mekanis oleh applyMechanicalScore() dari isi teks CV.
+  var score = Math.max(0, Math.min(100, num(obj.score, 0)));
+  var languageScore = snapToSteps(
+    Math.max(0, Math.min(5, num(obj.languageScore, 5))),
+    LANGUAGE_STEPS
+  );
+
+  const pick = (v, allowed, fallback) => (allowed.indexOf(String(v)) !== -1 ? String(v) : fallback);
+
   return {
-    score: Math.max(0, Math.min(100, num(obj.score, 0))),
-    summary: String(obj.summary || ''),
+    score: Math.max(0, Math.min(100, num(score, 0))),
+    languageScore: languageScore,
+    languageNote: stripForeignScript(obj.languageNote || ''),
+    summary: stripForeignScript(obj.summary),
     strengths: arr(obj.strengths),
     weaknesses: arr(obj.weaknesses),
     suggestions: arr(obj.suggestions),
     atsKeywords: arr(obj.atsKeywords),
     missing: arr(obj.missing),
     formatCheck: {
-      layout: String(fc.layout || 'ok'),
-      length: String(fc.length || 'ok'),
-      contact: String(fc.contact || 'ok')
+      layout: pick(fc.layout, ['ok', 'needs_improvement'], 'ok'),
+      length: pick(fc.length, ['ok', 'too_long', 'too_short'], 'ok'),
+      contact: pick(fc.contact, ['ok', 'missing'], 'ok')
     },
     roleMatch: Math.max(0, Math.min(100, num(obj.roleMatch, 0)))
   };
+}
+
+// ---------- Skor mekanis (deterministik) ----------
+// Prompt saja tidak cukup: model yang sama diberi CV yang sama masih memberi skor
+// berbeda-beda, dan permintaan "pilih dari tangga angka" justru membuatnya menempel ke
+// nilai maksimal. Jadi komponen yang bisa diukur dari TEKS dihitung di kode, bukan oleh AI.
+// Hasilnya skor yang sama untuk input yang sama — bisa diuji, bisa dijelaskan ke user.
+var SECTION_PATTERNS = {
+  summary: /(ringkasan|summary|profil|profile|tentang saya|about me)/i,
+  experience: /(pengalaman|experience|riwayat pekerjaan|work history)/i,
+  education: /(pendidikan|education|akademik|academic)/i,
+  skills: /(skill|keahlian|kompetensi|kemampuan|technical skills)/i
+};
+
+var STOPWORDS = ('dan atau yang untuk dengan pada dari ke di a an the of and or for with to in on at as is are be ' +
+  'kami saya anda kita akan bisa dapat juga serta oleh dalam adalah ini itu not no thea posisi sebagai ' +
+  'minimal maksimal tahun pengalaman kerja bekerja familiar menguasai mampu memiliki serta plus').split(' ');
+
+var EMAIL_RE = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
+var PHONE_RE = /(\+62|\(62\)|\b62|\b0)8[0-9][0-9\s.\-]{5,}/;
+var LINKEDIN_RE = /linkedin\.com\//i;
+var BULLET_RE = /^\s*[•·▪◦*\-–—]\s+\S/;
+var METRIC_RE = /\d+(?:[.,]\d+)?\s*(?:%|persen|rb|ribu|k\b|jt|juta|m\b|orang|user|pengguna|klien|client|tim|team|proyek|project|req|request|bulan|tahun|year|month|x\b)/i;
+
+function countKeywordHits(text, jobDesc) {
+  var tokens = String(jobDesc || '').toLowerCase().match(/[a-z][a-z0-9+#.\-]{2,}/g) || [];
+  var seen = {};
+  var unique = [];
+  for (var i = 0; i < tokens.length; i++) {
+    var t = tokens[i].replace(/[.\-]+$/, '');
+    if (t.length < 3 || STOPWORDS.indexOf(t) !== -1 || seen[t]) continue;
+    seen[t] = true;
+    unique.push(t);
+  }
+  var hay = String(text || '').toLowerCase();
+  var matched = [];
+  for (var j = 0; j < unique.length; j++) {
+    var re = new RegExp('(^|[^a-z0-9+#])' + unique[j].replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '([^a-z0-9+#]|$)', 'i');
+    if (re.test(hay)) matched.push(unique[j]);
+  }
+  return { total: unique.length, matched: matched };
+}
+
+function scoreCvMechanical(cvText, jobDesc, pages) {
+  var text = String(cvText || '');
+  var lines = text.split(/\r?\n/);
+
+  // --- contact (0/4/8/10) ---
+  var hasEmail = EMAIL_RE.test(text);
+  var hasPhone = PHONE_RE.test(text);
+  var hasLinkedin = LINKEDIN_RE.test(text);
+  var contact;
+  if (!hasEmail && !hasPhone) contact = 0;
+  else if (!hasEmail || !hasPhone) contact = 4;
+  else contact = hasLinkedin ? 10 : 8;
+
+  // --- structure (5/10/16/20) ---
+  var sections = 0;
+  for (var k in SECTION_PATTERNS) {
+    if (SECTION_PATTERNS[k].test(text)) sections++;
+  }
+  var bullets = 0;
+  for (var i = 0; i < lines.length; i++) {
+    if (BULLET_RE.test(lines[i])) bullets++;
+  }
+  var structure;
+  if (sections >= 4 && bullets >= 5) structure = 20;
+  else if (sections >= 3) structure = 16;
+  else if (sections >= 1 || bullets >= 3) structure = 10;
+  else structure = 5;
+
+  // --- achievements (12/18/24/30) ---
+  var metrics = 0;
+  for (var m = 0; m < lines.length; m++) {
+    if (METRIC_RE.test(lines[m])) metrics++;
+  }
+  var achievements;
+  if (metrics >= 5) achievements = 30;
+  else if (metrics >= 3) achievements = 24;
+  else if (metrics >= 1) achievements = 18;
+  else achievements = 12;
+
+  // --- ats (5/12/20/25) ---
+  // Dinilai sebagai RASIO keyword jobdesc yang ditemukan, bukan jumlah absolut:
+  // jobdesc pendek (4 keyword) tidak boleh mustahil dapat nilai penuh.
+  var kw = countKeywordHits(text, jobDesc);
+  var ats;
+  if (kw.total === 0) {
+    ats = 20; // tanpa jobdesc, relevansi tidak bisa diukur — nilai netral
+  } else {
+    var ratio = kw.matched.length / kw.total;
+    if (ratio >= 0.75) ats = 25;
+    else if (ratio >= 0.5) ats = 20;
+    else if (ratio > 0) ats = 12;
+    else ats = 5;
+  }
+
+  // --- length (5/10) ---
+  var pageCount = Number(pages);
+  var length;
+  if (isFinite(pageCount) && pageCount >= 1) {
+    length = pageCount <= 2 ? 10 : 5;
+  } else {
+    length = (text.length >= 1200 && text.length <= 6000) ? 10 : 5;
+  }
+
+  var breakdown = {
+    contact: contact,
+    structure: structure,
+    achievements: achievements,
+    ats: ats,
+    length: length,
+    language: 5, // diisi dari penilaian AI (satu-satunya komponen subjektif)
+    total: contact + structure + achievements + ats + length + 5
+  };
+
+  return {
+    breakdown: breakdown,
+    evidence: {
+      hasEmail: hasEmail,
+      hasPhone: hasPhone,
+      hasLinkedin: hasLinkedin,
+      sections: sections,
+      bullets: bullets,
+      metrics: metrics,
+      atsMatched: kw.matched,
+      atsTotal: kw.total,
+      atsRatio: kw.total ? kw.matched.length / kw.total : null,
+      pages: isFinite(pageCount) ? pageCount : null,
+      chars: text.length
+    }
+  };
+}
+
+// Timpa skor AI dengan skor mekanis. Komponen `language` tetap dari AI karena
+// typo/ejaan tidak bisa dideteksi andal tanpa model bahasa.
+function applyMechanicalScore(review, cvText, jobDesc, pages) {
+  if (!cvText) return review;
+  var m = scoreCvMechanical(cvText, jobDesc, pages);
+  var b = m.breakdown;
+  if (review && typeof review.languageScore === 'number') {
+    b.language = snapToSteps(Math.max(0, Math.min(5, review.languageScore)), LANGUAGE_STEPS);
+  }
+  var total = b.contact + b.structure + b.achievements + b.ats + b.length + b.language;
+  var out = {};
+  for (var key in review) {
+    if (Object.prototype.hasOwnProperty.call(review, key)) out[key] = review[key];
+  }
+  out.aiScore = typeof review.score === 'number' ? review.score : null; // buat diagnosa, tidak dipakai UI
+  out.scoreBreakdown = {
+    contact: b.contact, structure: b.structure, achievements: b.achievements,
+    ats: b.ats, length: b.length, language: b.language, total: total
+  };
+  out.scoreEvidence = m.evidence;
+  out.score = total;
+  return out;
 }
 
 // ---------- HTTP Entry Points ----------
@@ -369,6 +625,16 @@ function doPost(e, now) {
     var origin = (e && e.parameter && e.parameter.origin) || '';
     if (origin && ALLOWED_ORIGINS.indexOf(origin) === -1) {
       return jsonResponse({ ok: false, status: 403, error: 'Origin tidak diizinkan.' });
+    }
+
+    // Kunci bersama proxy↔GAS (opsional). Kalau PROXY_SECRET di-set di Script Properties,
+    // request wajib membawa ?token=<secret>. Proxy Vercel mengirimnya dari env GAS_PROXY_SECRET.
+    var proxySecret = PropertiesService.getScriptProperties().getProperty('PROXY_SECRET');
+    if (proxySecret) {
+      var token = (e && e.parameter && e.parameter.token) || '';
+      if (token !== proxySecret) {
+        return jsonResponse({ ok: false, status: 403, error: 'Kunci proxy tidak valid.' });
+      }
     }
 
     const body = parseBody(e);
@@ -436,6 +702,7 @@ function handleReview(body) {
   const cvText = String(body.cvText || '').trim();
   const jobDesc = String(body.jobDesc || '').trim();
   const appliedSuggestions = Array.isArray(body.appliedSuggestions) ? body.appliedSuggestions : [];
+  const pages = Number(body.pages); // jumlah halaman PDF dari frontend (opsional)
 
   if (!cvText) {
     return jsonResponse({ ok: false, status: 400, error: 'Teks CV kosong. Pastikan PDF berhasil di-extract.' });
@@ -451,7 +718,7 @@ function handleReview(body) {
   }
 
   try {
-    const review = callAiApi(cvText, jobDesc, appliedSuggestions);
+    const review = callAiApi(cvText, jobDesc, appliedSuggestions, isFinite(pages) ? pages : null);
     return jsonResponse({ ok: true, review: review });
   } catch (err) {
     return jsonResponse({ ok: false, status: 500, error: 'Gagal memproses review: ' + err.message });
@@ -514,6 +781,15 @@ if (typeof module !== 'undefined') {
     callImproveApi,
     parseAiResponse,
     normalizeReview,
+    stripForeignScript,
+    scoreCvMechanical,
+    applyMechanicalScore,
+    countKeywordHits,
+    snapToSteps,
+    LANGUAGE_STEPS,
+    AI_MAX_ATTEMPTS,
+    AI_BUDGET_MS,
+    sleepMs,
     handleReview,
     handleImprove,
     jsonResponse,

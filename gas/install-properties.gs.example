@@ -1,10 +1,10 @@
 // Helper: copy ke install-properties.gs (JANGAN commit), jalankan sekali di GAS editor
 // setelah push untuk set Script Properties.
-// Ganti YOUR_BYNARA_API_KEY dengan key dari ~/.pi/agent/models.json (provider bynara)
+// Ganti YOUR_AGNES_API_KEY dengan API key agnes (provider `agnes` di config Hermes)
 function installProperties() {
   const props = PropertiesService.getScriptProperties();
-  // Primary provider: bynara router (gemini-3.8-flash-high)
-  props.setProperty('BYNARA_API_KEY', 'YOUR_BYNARA_API_KEY');
-  props.setProperty('BYNARA_BASE_URL', 'https://router.bynara.id/v1');
-  Logger.log('BYNARA_API_KEY terpasang.');
+  // Primary provider: agnes apihub (agnes-3.0-flash)
+  props.setProperty('AGNES_API_KEY', 'YOUR_AGNES_API_KEY');
+  props.setProperty('AGNES_BASE_URL', 'https://apihub.agnes-ai.com/v1');
+  Logger.log('AGNES_API_KEY terpasang.');
 }
