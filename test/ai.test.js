@@ -364,3 +364,39 @@ test('buildImprovePrompt melarang baris kontak karangan', () => {
   assert.ok(p.includes('placeholder'), 'larangan placeholder tidak ada');
   assert.ok(p.includes('[Tautan LinkedIn]'), 'contoh placeholder tidak disebut');
 });
+
+// ---------- Budget timeout per jenis tugas (v19) ----------
+test('improve dapat budget waktu lebih besar dari review', () => {
+  const rev = Code.aiBudgetFor('review');
+  const imp = Code.aiBudgetFor('improve');
+  assert.ok(imp.budgetMs > rev.budgetMs, 'budget improve harus lebih besar: ' + imp.budgetMs + ' vs ' + rev.budgetMs);
+  assert.ok(imp.maxLastAttemptMs > rev.maxLastAttemptMs, 'percobaan terakhir improve harus lebih longgar');
+  assert.strictEqual(rev.budgetMs, 45000);
+  assert.strictEqual(imp.budgetMs, 52000);
+});
+
+test('budget semua jenis tetap di bawah timeout GAS 55s', () => {
+  ['review', 'improve'].forEach((k) => {
+    const b = Code.aiBudgetFor(k);
+    assert.ok(b.budgetMs < 55000, k + ': budget ' + b.budgetMs + ' harus < 55000');
+    assert.ok(b.maxLastAttemptMs <= b.budgetMs, k + ': percobaan terakhir tidak boleh melebihi budget');
+  });
+});
+
+test('callImproveApi memakai budget improve (timeout lebih longgar)', () => {
+  UrlFetchApp._reset();
+  PropertiesService._reset();
+  PropertiesService.getScriptProperties().setProperty('AGNES_API_KEY', 'test-key');
+  UrlFetchApp._setResponse(200, JSON.stringify({ choices: [{ message: { content: 'CV baru' } }] }));
+  Code.callImproveApi('CV asli', 'Dev', { suggestions: [], weaknesses: [], missing: [], atsKeywords: [], score: 50 });
+  const impTimeout = UrlFetchApp._getLastCall().options.timeoutSeconds;
+
+  UrlFetchApp._reset();
+  UrlFetchApp._setResponse(200, JSON.stringify({
+    choices: [{ message: { content: '{"score":50,"summary":"ok","strengths":[],"weaknesses":[],"suggestions":[],"atsKeywords":[],"missing":[],"formatCheck":{"layout":"ok","length":"ok","contact":"ok"},"roleMatch":50}' } }]
+  }));
+  Code.callAiApi('CV', '');
+  const revTimeout = UrlFetchApp._getLastCall().options.timeoutSeconds;
+
+  assert.ok(impTimeout >= revTimeout, 'timeout improve (' + impTimeout + 's) harus >= review (' + revTimeout + 's)');
+});
