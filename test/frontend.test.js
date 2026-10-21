@@ -155,30 +155,28 @@ test('style.css punya animasi hasil review (listIn, scorePop, deltaPulse)', () =
   assert.ok(CSS.includes('@keyframes resultFade'), 'resultFade missing');
 });
 
-test('style.css hero punya animasi floating & shine', () => {
-  assert.ok(CSS.includes('@keyframes floatSlow'), 'floatSlow missing');
-  assert.ok(CSS.includes('.hero-visual'), 'float target missing');
-  assert.ok(CSS.includes('@keyframes shine'), 'shine keyframes missing');
-  assert.ok(CSS.includes('animation: floatSlow 5s'), 'float durasi missing');
-  assert.ok(CSS.includes('animation: shine 4.5s'), 'shine durasi missing');
+test('style.css hero pakai blok highlight pada kata kunci', () => {
+  assert.ok(CSS.includes('.hero-title em'), 'highlight em missing');
+  assert.ok(CSS.includes('background: var(--green)'), 'highlight pakai token hijau');
+  assert.ok(CSS.includes('box-decoration-break'), 'highlight harus aman saat wrap');
 });
 
 test('style.css navbar punya progress bar', () => {
   assert.ok(CSS.includes('.nav-progress'), 'nav-progress css missing');
-  assert.ok(CSS.includes('background: linear-gradient(90deg, var(--color-signal-blue), var(--color-iris))'), 'progress gradient missing');
+  assert.ok(CSS.includes('transition: width .1s linear'), 'progress transition missing');
 });
 
-test('style.css dropzone punya marching-ants + bounce + dz-file slide', () => {
-  assert.ok(CSS.includes('@keyframes antsMove'), 'antsMove missing');
+test('style.css dropzone punya bounce + dz-file slide', () => {
   assert.ok(CSS.includes('.dropzone.dragover { animation: dropBounce'), 'dropBounce wiring missing');
   assert.ok(CSS.includes('@keyframes dropBounce'), 'dropBounce keyframes missing');
   assert.ok(CSS.includes('.dz-file:not(:empty)'), 'dz-file slide-in missing');
+  assert.ok(CSS.includes('@keyframes wiggle'), 'dz-icon wiggle missing');
 });
 
-test('style.css history tilt-on-hover + step-num pulse', () => {
+test('style.css history lift-on-hover + score scale', () => {
   assert.ok(CSS.includes('.history-item:hover .h-score'), 'history score pulse missing');
-  assert.ok(CSS.includes('@keyframes stepPulse'), 'stepPulse missing');
-  assert.ok(CSS.includes('.step-num'), 'step-num target missing');
+  assert.ok(CSS.includes('@keyframes historyIn'), 'historyIn masuk missing');
+  assert.ok(CSS.includes('.history-item { opacity: 1; animation: none; }'), 'history harus tetap terlihat saat reduced motion');
 });
 
 test('index.html punya nav-progress & footer reveal', () => {
@@ -261,4 +259,66 @@ test('download PDF menangani kegagalan font', () => {
 test('app.js membuang penanda bullet saat render PDF', () => {
   assert.ok(APP_JS.includes('stripPdfBullet'), 'fungsi stripPdfBullet missing');
   assert.ok(APP_JS.includes('PDF_BULLET_RE'), 'regex bullet missing');
+});
+
+// ---------- Palet & sistem warna (v20) ----------
+test('style.css memakai palet referensi yang diukur, bukan tebakan', () => {
+  for (const token of ['--cream: #f4f2e6', '--green: #9cd270', '--yellow: #f2e24e', '--ink: #1f1f1f']) {
+    assert.ok(css.includes(token), 'token palet missing: ' + token);
+  }
+});
+
+test('warna pekat dibatasi satu per layar, sisanya tint pastel', () => {
+  // kartu skor satu-satunya blok warna pekat
+  assert.ok(css.includes('.score {\n  background: var(--green)'), 'kartu skor harus hijau pekat');
+  // kartu pendamping wajib memakai tint, bukan warna pekat
+  for (const tint of ['--green-t', '--coral-t', '--blue-t']) {
+    assert.ok(css.includes('var(' + tint + ')'), 'tint missing: ' + tint);
+  }
+  // background kartu pendamping wajib tint; warna pekat hanya boleh di border aksen
+  const cardBlocks = css.match(/\.c-(green|coral|amber|blue) \{[^}]*\}/g) || [];
+  assert.ok(cardBlocks.length === 4, 'harus ada 4 varian kartu');
+  for (const block of cardBlocks) {
+    const bg = (block.match(/background:\s*([^;]+);/) || [])[1] || '';
+    assert.ok(/-t\)/.test(bg), 'background kartu harus token tint (-t), dapat: ' + bg);
+  }
+});
+
+test('kuning hanya dipakai untuk CTA, bukan kartu', () => {
+  assert.ok(css.includes('.btn-yellow { background: var(--yellow)'), 'CTA kuning missing');
+  assert.ok(!css.includes('.c-amber { background: var(--yellow)'), 'kartu saran tidak boleh kuning (bentrok dengan CTA)');
+});
+
+test('kontras teks kecil minimal 4.5:1 terhadap latarnya', () => {
+  // token yang dipakai untuk teks sekunder
+  assert.ok(css.includes('--ink-55: #6b695e'), 'ink-55 harus #6b695e (4.91:1 di cream)');
+  assert.ok(css.includes('color: #6f6d60'), 'placeholder harus #6f6d60 (4.64:1)');
+  assert.ok(css.includes('background: #d6d3c4; color: #50504c'), 'tombol disabled harus 5.41:1');
+});
+
+test('style.css tidak memakai box-shadow (flat design)', () => {
+  assert.ok(!css.includes('box-shadow'), 'box-shadow dilarang');
+});
+
+test('index.html mempertahankan id yang dipakai app.js', () => {
+  for (const id of ['result-file', 'score-num', 'summary-text', 'role-match', 'breakdown-card',
+                    'breakdown-list', 'strengths-list', 'weaknesses-list', 'suggestions-list',
+                    'ats-tags', 'missing-list', 'format-list', 'download-btn',
+                    'manual-input-card', 'extra-missing', 'improve-btn', 'improve-result',
+                    'improve-text', 'improve-download', 'improve-copy', 'rescore-btn',
+                    'score-delta', 'review-count', 'toast', 'burger']) {
+    assert.ok(html.includes('id="' + id + '"'), 'id hilang: ' + id);
+  }
+});
+
+test('skor memakai angka besar, ring lama disembunyikan bukan dihapus', () => {
+  assert.ok(html.includes('class="score-num"'), 'score-num besar missing');
+  assert.ok(html.includes('id="score-ring"'), 'score-ring harus tetap ada untuk app.js');
+  assert.ok(css.includes('.score-ring { display: none; }'), 'ring harus display none');
+});
+
+test('riwayat tidak memakai .reveal (tidak pernah di-observe ulang)', () => {
+  assert.ok(!APP_JS.includes("'history-item reveal'"), 'history-item tidak boleh pakai .reveal');
+  assert.ok(APP_JS.includes('historyIn') === false, 'animasi riwayat cukup di CSS');
+  assert.ok(css.includes('@keyframes historyIn'), 'historyIn missing');
 });

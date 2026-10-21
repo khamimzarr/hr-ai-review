@@ -27,6 +27,7 @@ const els = {
   scoreNum: $('score-num'),
   scoreRingFg: $('score-ring-fg'),
   roleMatch: $('role-match'),
+  resultFile: $('result-file'),
   formatList: $('format-list'),
   breakdownCard: $('breakdown-card'),
   breakdownList: $('breakdown-list'),
@@ -76,7 +77,8 @@ function handleFile(file) {
   currentFilePages = 1;
   els.fileName.textContent = file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB)';
   els.reviewBtn.disabled = false;
-  els.improveDownload.textContent = ext === 'pdf' ? 'Download (.pdf)' : 'Download (.txt)';
+  els.btnLabel.textContent = 'Review CV';
+  els.improveDownload.textContent = ext === 'pdf' ? 'Unduh (.pdf)' : 'Unduh (.txt)';
   hideError();
 }
 
@@ -169,7 +171,7 @@ async function runReview() {
 els.reviewBtn.addEventListener('click', runReview);
 
 // ---------- Render ----------
-function renderReview(review) {
+function renderReview(review, labelParts) {
   const score = Math.max(0, Math.min(100, Math.round(review.score || 0)));
   const roleMatch = review.roleMatch || 0;
 
@@ -208,15 +210,15 @@ function renderReview(review) {
 
   // Format check
   const labels = {
-    layout: 'Layout & struktur',
-    length: 'Panjang dokumen',
-    contact: 'Kontak & identitas'
+    layout: 'Layout',
+    length: 'Panjang',
+    contact: 'Kontak'
   };
   const okText = { layout: 'Rapi', length: 'Sesuai', contact: 'Lengkap' };
   const badText = {
     layout: 'Perlu diperbaiki',
     length: 'Tidak ideal',
-    contact: 'Tidak ditemukan'
+    contact: 'Tidak ada'
   };
   els.formatList.innerHTML = '';
   Object.keys(labels).forEach((key) => {
@@ -235,8 +237,20 @@ function renderReview(review) {
     els.formatList.appendChild(li);
   });
 
-  // Summary
-  els.summaryText.textContent = review.summary || '';
+  // Summary -> kalimat pertama ditebalkan sebagai verdict
+  const summary = (review.summary || '').trim();
+  els.summaryText.innerHTML = '';
+  if (summary) {
+    const cut = summary.match(/^(.+?[.!?])\s+(.*)$/);
+    if (cut) {
+      const strong = document.createElement('b');
+      strong.textContent = cut[1];
+      els.summaryText.appendChild(strong);
+      els.summaryText.appendChild(document.createTextNode(' ' + cut[2]));
+    } else {
+      els.summaryText.textContent = summary;
+    }
+  }
 
   // Lists
   fillList(els.strengthsList, review.strengths || []);
@@ -256,6 +270,16 @@ function renderReview(review) {
 
   renderBreakdown(review);
 
+  if (els.resultFile) {
+    const parts = labelParts || [];
+    if (!parts.length) {
+      if (selectedFile) parts.push(selectedFile.name);
+      const pos = els.positionInput.value.trim();
+      if (pos) parts.push(pos);
+    }
+    els.resultFile.textContent = parts.join(' · ');
+  }
+
   els.downloadBtn.hidden = false;
   els.improveBtn.hidden = false;
   els.manualInputCard.hidden = false;
@@ -266,12 +290,12 @@ function renderReview(review) {
 // Rincian skor: skor total dihitung sistem dari komponen terukur,
 // jadi user bisa lihat dari mana angkanya datang.
 const BREAKDOWN_META = [
-  { key: 'contact', label: 'Kontak & identitas', max: 10 },
-  { key: 'structure', label: 'Struktur & layout', max: 20 },
-  { key: 'achievements', label: 'Pencapaian terukur', max: 30 },
-  { key: 'ats', label: 'Keyword ATS', max: 25 },
-  { key: 'length', label: 'Panjang CV', max: 10 },
-  { key: 'language', label: 'Ejaan & bahasa', max: 5 }
+  { key: 'contact', label: 'Kontak', max: 10 },
+  { key: 'structure', label: 'Struktur', max: 20 },
+  { key: 'achievements', label: 'Pencapaian', max: 30 },
+  { key: 'ats', label: 'Kata kunci ATS', max: 25 },
+  { key: 'length', label: 'Panjang', max: 10 },
+  { key: 'language', label: 'Bahasa', max: 5 }
 ];
 
 function renderBreakdown(review) {
@@ -293,7 +317,7 @@ function renderBreakdown(review) {
 
     const track = document.createElement('span');
     track.className = 'bd-track';
-    const fill = document.createElement('i');
+    const fill = document.createElement('span');
     fill.className = 'bd-fill';
     fill.style.width = Math.round((pts / meta.max) * 100) + '%';
     track.appendChild(fill);
@@ -314,7 +338,7 @@ function fillList(ul, items) {
   if (!items || items.length === 0) {
     const li = document.createElement('li');
     li.textContent = '—';
-    li.style.color = 'var(--color-fog)';
+    li.className = 'empty-item';
     ul.appendChild(li);
     return;
   }
@@ -374,9 +398,8 @@ function renderHistory() {
 
   history.forEach((item, idx) => {
     const div = document.createElement('div');
-    div.className = 'history-item reveal';
-    const stagger = Math.min(idx, 8) + 1;
-    div.classList.add('reveal-s' + stagger);
+    div.className = 'history-item';
+    div.style.animationDelay = (Math.min(idx, 8) * 0.06) + 's';
 
     // Tombol hapus
     const delBtn = document.createElement('button');
@@ -392,7 +415,11 @@ function renderHistory() {
     // Skor
     const scoreDiv = document.createElement('div');
     scoreDiv.className = 'h-score';
-    scoreDiv.textContent = Math.round(item.review.score || 0) + '/100';
+    scoreDiv.textContent = Math.round(item.review.score || 0);
+    const scoreUnit = document.createElement('span');
+    scoreUnit.className = 'h-score-unit';
+    scoreUnit.textContent = '/100';
+    scoreDiv.appendChild(scoreUnit);
     div.appendChild(scoreDiv);
 
     // Nama file
@@ -420,7 +447,8 @@ function renderHistory() {
         els.improveResult.hidden = true;
       }
       els.extraMissing.value = ''; // reset manual input saat klik history
-      renderReview(item.review);
+      const label = [item.fileName, item.position].filter(Boolean);
+      renderReview(item.review, label);
       els.resultSection.scrollIntoView({ behavior: 'smooth' });
     });
     els.historyList.appendChild(div);
@@ -493,7 +521,7 @@ async function runImprove() {
     showToast('Gagal: ' + err.message);
   } finally {
     els.improveBtn.disabled = false;
-    els.improveBtnLabel.textContent = '✨ Perbaiki CV dengan AI';
+    els.improveBtnLabel.textContent = 'Perbaiki CV';
     els.improveSpinner.hidden = true;
   }
 }
@@ -597,7 +625,7 @@ async function runRescore() {
     showToast('Gagal: ' + err.message);
   } finally {
     els.rescoreBtn.disabled = false;
-    els.rescoreBtn.textContent = '📊 Skor Ulang CV Baru';
+    els.rescoreBtn.textContent = 'Skor ulang';
   }
 }
 
@@ -881,7 +909,7 @@ els.improveCopy.addEventListener('click', () => {
 // ---------- UI helpers ----------
 function setLoading(loading) {
   els.reviewBtn.disabled = loading || !selectedFile;
-  els.btnLabel.textContent = loading ? 'Mereview...' : 'Review CV Sekarang';
+  els.btnLabel.textContent = loading ? 'Mereview...' : (selectedFile ? 'Review CV' : 'Pilih file dulu');
   els.spinner.hidden = !loading;
 }
 
