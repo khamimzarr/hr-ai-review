@@ -547,8 +547,20 @@ async function runImprove() {
   }
 }
 
+// Hasil improve tidak boleh membawa penanda daftar: daftar ditulis sebagai baris
+// terpisah. Backend sudah membuangnya, tapi riwayat lama di localStorage masih
+// menyimpan teks berbullet — jadi dibersihkan juga saat ditampilkan.
+const LIST_MARKER_RE = /^[ \t]*(?:[•·▪▫◦‣∙●○■□–—]|[-*+])\s+/;
+
+function stripListMarkers(text) {
+  return String(text || '')
+    .split(/\r?\n/)
+    .map((line) => line.replace(LIST_MARKER_RE, ''))
+    .join('\n');
+}
+
 function renderImprovedCv(text) {
-  els.improveText.value = text;
+  els.improveText.value = stripListMarkers(text);
   els.improveResult.hidden = false;
   els.improveResult.scrollIntoView({ behavior: 'smooth' });
 }
@@ -1058,6 +1070,46 @@ function attachRipple() {
   });
 }
 
+// Menu mobile: burger membuka panel navigasi. Di desktop nav-links sudah tampil,
+// jadi burger disembunyikan CSS dan panelnya ditutup paksa.
+function initNavMenu() {
+  const burger = $('burger');
+  const menu = $('nav-menu');
+  if (!burger || !menu) return;
+
+  const desktop = () => window.matchMedia('(min-width: 820px)');
+
+  const setOpen = (open) => {
+    const isOpen = open && !desktop().matches;
+    menu.hidden = !isOpen;
+    burger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    burger.setAttribute('aria-label', isOpen ? 'Tutup menu' : 'Menu');
+  };
+
+  burger.addEventListener('click', () => {
+    setOpen(menu.hidden);
+  });
+
+  // Menu ditutup setelah memilih tujuan, saat klik di luar, dan saat Esc.
+  menu.addEventListener('click', (e) => {
+    if (e.target.closest('a')) setOpen(false);
+  });
+  document.addEventListener('click', (e) => {
+    if (menu.hidden) return;
+    if (e.target.closest('#nav-menu') || e.target.closest('#burger')) return;
+    setOpen(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !menu.hidden) {
+      setOpen(false);
+      burger.focus();
+    }
+  });
+  // Ganti ke desktop saat menu terbuka: tutup supaya tidak dobel dengan nav-links.
+  if (desktop().addEventListener) desktop().addEventListener('change', () => setOpen(false));
+  else if (desktop().addListener) desktop().addListener(() => setOpen(false));
+}
+
 // Navbar scroll progress bar
 function initScrollProgress() {
   const bar = $('nav-progress');
@@ -1078,6 +1130,7 @@ function initScrollProgress() {
 renderHistory();
 initScrollReveal();
 attachRipple();
+initNavMenu();
 initScrollProgress();
 
 // PWA: service worker registration

@@ -374,3 +374,67 @@ test('loader karakter selalu ditutup di finally', () => {
   const idles = (APP_JS.match(/aiIdle\(\);/g) || []).length;
   assert.ok(idles >= 3, 'setiap alur AI harus memanggil aiIdle() di finally, dapat: ' + idles);
 });
+
+// ---------- v21: hint teks & bullet & favicon ----------
+test('hint "Bisa disunting" hanya muncul sekali, di bawah textarea', () => {
+  const count = (html.match(/Bisa disunting sebelum diunduh/g) || []).length;
+  assert.equal(count, 1, 'hint harus muncul tepat 1x, dapat: ' + count);
+  // yang tersisa harus milik textarea hasil, bukan kepala section improve
+  assert.ok(html.includes('class="improve-edit-hint">Bisa disunting sebelum diunduh.'), 'hint harus di improve-edit-hint');
+  const headStart = html.indexOf('class="improve-head"');
+  const headEnd = html.indexOf('ai-slot-improve');
+  assert.ok(!html.slice(headStart, headEnd).includes('Bisa disunting'), 'hint tidak boleh ada di improve-head');
+});
+
+test('hint sunting rata kiri mengikuti tepi textarea', () => {
+  assert.ok(css.includes('.improve-edit-hint { font-size: 13px; color: var(--ink-55); text-align: left; }'),
+    'hint harus text-align: left');
+});
+
+test('hasil improve membuang penanda daftar di backend dan frontend', () => {
+  const GAS = fs.readFileSync(path.join(__dirname, '..', 'gas', 'Code.gs'), 'utf8');
+  assert.ok(GAS.includes('stripListMarkers'), 'backend harus punya stripListMarkers');
+  assert.ok(GAS.includes('content = stripListMarkers(content)'), 'stripListMarkers harus dipanggil di callImproveApi');
+  assert.ok(APP_JS.includes('stripListMarkers'), 'frontend harus membersihkan bullet dari riwayat lama');
+  assert.ok(APP_JS.includes('els.improveText.value = stripListMarkers(text)'), 'renderImprovedCv harus memakai stripListMarkers');
+  // prompt tidak boleh lagi meminta bullet "•"
+  assert.ok(!GAS.includes('Gunakan bullet point'), 'prompt masih menyuruh pakai bullet');
+  assert.ok(GAS.includes('DILARANG memakai penanda daftar'), 'prompt harus melarang penanda daftar');
+});
+
+test('skor struktur tidak bergantung pada glyph bullet', () => {
+  const GAS = fs.readFileSync(path.join(__dirname, '..', 'gas', 'Code.gs'), 'utf8');
+  assert.ok(GAS.includes('countEntryLines'), 'struktur harus dihitung dari baris isi');
+  assert.ok(GAS.includes('var entries = Math.max(bullets, countEntryLines(lines))'), 'entries harus gabungan');
+  assert.ok(GAS.includes('sections >= 4 && entries >= 5'), 'ambang struktur harus pakai entries');
+});
+
+test('favicon memakai palet desain baru, bukan biru lama', () => {
+  for (const name of ['icon-192.svg', 'icon-512.svg']) {
+    const svg = fs.readFileSync(path.join(VERCEL, name), 'utf8');
+    assert.ok(!svg.includes('#1a91f0'), name + ' masih memakai biru desain lama');
+    assert.ok(svg.includes('#9cd270'), name + ' harus memakai hijau palet');
+    assert.ok(svg.includes('#f4f2e6'), name + ' harus memakai latar krem');
+  }
+  assert.ok(fs.existsSync(path.join(VERCEL, 'favicon.ico')), 'favicon.ico missing');
+  assert.ok(html.includes('rel="icon" href="/favicon.ico"'), 'link favicon.ico missing');
+  assert.ok(html.includes('rel="apple-touch-icon" href="/apple-touch-icon.png"'), 'apple-touch-icon harus png');
+  const manifest = JSON.parse(fs.readFileSync(path.join(VERCEL, 'manifest.json'), 'utf8'));
+  assert.ok(manifest.icons.some((i) => i.type === 'image/png'), 'manifest harus punya ikon PNG');
+  assert.ok(sw.includes("'/favicon.ico'"), 'sw harus cache favicon baru');
+});
+
+test('burger punya menu yang bisa dibuka, bukan tombol mati', () => {
+  assert.ok(html.includes('id="nav-menu"'), 'panel nav-menu missing');
+  assert.ok(html.includes('aria-controls="nav-menu"'), 'burger harus menunjuk panelnya');
+  assert.ok(APP_JS.includes('function initNavMenu'), 'initNavMenu missing');
+  assert.ok(APP_JS.includes('initNavMenu();'), 'initNavMenu tidak dipanggil saat init');
+  // tombol harus benar-benar mengubah state, bukan hanya ada elemennya
+  assert.ok(APP_JS.includes("burger.addEventListener('click'"), 'burger tanpa listener klik');
+  assert.ok(APP_JS.includes('aria-expanded'), 'state menu harus tercermin di aria-expanded');
+  // menu harus bisa ditutup: klik link, klik luar, Esc
+  assert.ok(APP_JS.includes("e.key === 'Escape'"), 'Esc harus menutup menu');
+  assert.ok(css.includes('.nav-menu:not([hidden]) { display: flex; }'), 'panel harus tampil saat tidak hidden');
+  // di desktop burger disembunyikan, jadi panel tidak boleh ikut muncul
+  assert.ok(css.includes('.burger { display: grid; }'), 'burger hanya tampil di mobile');
+});

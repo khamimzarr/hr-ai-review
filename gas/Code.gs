@@ -30,8 +30,8 @@ function buildSystemPrompt(appliedSuggestions) {
     '',
     '1. contact — pilih SALAH SATU dari {0, 4, 8, 10}. Nama + email + telepon + (LinkedIn/portfolio).',
     '   10 = keempatnya ada. 8 = tidak ada LinkedIn/portfolio. 4 = tidak ada email ATAU tidak ada telepon. 0 = tidak ada keduanya.',
-    '2. structure — pilih SALAH SATU dari {5, 10, 16, 20}. Urutan section (Ringkasan → Pengalaman → Pendidikan → Skill), heading, bullet points.',
-    '   20 = semua section lengkap & terurut, isi bullet rapi. 16 = satu section tidak ada atau urutannya kacau. 10 = paragraf tebal tanpa bullet. 5 = tidak ada section sama sekali.',
+    '2. structure — pilih SALAH SATU dari {5, 10, 16, 20}. Urutan section (Ringkasan → Pengalaman → Pendidikan → Skill), heading, dan butir pencapaian per baris.',
+    '   20 = semua section lengkap & terurut, butir pencapaian terpisah per baris. 16 = satu section tidak ada atau urutannya kacau. 10 = paragraf tebal tanpa butir. 5 = tidak ada section sama sekali.',
     '3. achievements — pilih SALAH SATU dari {12, 18, 24, 30}. Pencapaian terkuantifikasi (angka, persen, jumlah pengguna, skala tim).',
     '   30 = hampir semua pencapaian punya angka. 24 = sebagian besar punya angka. 18 = hanya sedikit yang punya angka. 12 = tidak ada satu pun angka.',
     '4. ats — pilih SALAH SATU dari {5, 12, 20, 25}. Keyword industri/hard skill yang relevan dengan posisi yang dilamar.',
@@ -173,15 +173,15 @@ function buildImprovePrompt(cvText, jobDesc, reviewContext) {
     '',
     '═══ PERMISSION MATRIX ═══',
     'BOLEH (tujuannya untuk naikkan skor):',
-    '- ✅ Rewrite struktur: ubah urutan section, tambah heading, gunakan bullet points untuk pencapaian',
+    '- ✅ Rewrite struktur: ubah urutan section, tambah heading, tulis pencapaian satu per baris',
     '- ✅ Tambah section ringkasan profil di awal CV (dari info yang ada di CV — bukan karangan)',
-    '- ✅ Ubah paragraf tebal menjadi bullet points yang ringkas dan terstruktur',
+    '- ✅ Ubah paragraf tebal menjadi butir ringkas yang terstruktur, satu pencapaian per baris',
     '- ✅ Kuantifikasi pencapaian jika ada petunjuk di teks CV (mis. "mengembangkan aplikasi" → jika di teks ada angka/data, tambahkan)',
     '- ✅ Tambah keyword ATS yang RELEVAN dengan skill yang sudah disebut di CV (mis. jika CV sebut "React", boleh tambah "React.js", "Frontend", "Component-based architecture")',
     '- ✅ Rapikan format: tata bahasa, ejaan, konsistensi terminologi',
     '- ✅ Tambah section heading yang jelas (RINGKASAN, PENGALAMAN KERJA, PENDIDIKAN, SKILL)',
     '- ✅ Format tanggal konsisten (mis. "Jan 2023 – Sekarang")',
-    '- ✅ Gunakan bullet point “•” untuk list pencapaian, BUKAN tanda hubung “-” atau “*”',
+    '- ✅ Tulis setiap butir pencapaian sebagai baris tersendiri TANPA penanda daftar (tanpa “•”, “-”, atau “*”)',
     '- ✅ Gunakan HURUF KAPITAL untuk heading section (mis. RINGKASAN PROFIL, PENGALAMAN KERJA, PENDIDIKAN, SKILL)',
     '',
     'DILARANG:',
@@ -197,7 +197,7 @@ function buildImprovePrompt(cvText, jobDesc, reviewContext) {
     '',
     '═══ RUBRIK SKOR (target tingkatkan skor) ═══',
     '- Kontak: pastikan email & telepon ada di bagian atas CV',
-    '- Struktur: gunakan heading section + bullet points',
+    '- Struktur: gunakan heading section + butir pencapaian per baris',
     '- Pencapaian: kuantifikasi dengan metrik dari teks jika ada',
     '- ATS keywords: tambahkan variasi keyword yang relevan',
     '- Panjang: 1-2 halaman ideal',
@@ -406,9 +406,21 @@ function stripInventedContactLines(text) {
   return { text: kept.join('\n').replace(/\n{3,}/g, '\n\n').trim(), removed: removed };
 }
 
+// Penanda list dibuang dari hasil improve: daftar ditulis sebagai baris terpisah
+// tanpa glyph. Bullet "•" di textarea terbaca sebagai noise dan di PDF pun sudah
+// dibuang sejak v19 — jadi lebih baik tidak pernah muncul sejak awal.
+var LIST_MARKER_RE = /^[ \t]*(?:[•·▪▫◦‣∙●○■□–—]|[-*+])\s+/;
+
+function stripListMarkers(text) {
+  return String(text || '')
+    .split(/\r?\n/)
+    .map(function (line) { return line.replace(LIST_MARKER_RE, ''); })
+    .join('\n');
+}
+
 function callImproveApi(cvText, jobDesc, reviewContext) {
   const messages = [
-    { role: 'system', content: DATE_CONTEXT + ' Kamu adalah asisten HR specialist senior yang membantu pelamar memperbaiki CV agar lebih kompetitif. Selalu output dalam bahasa Indonesia formal. Target: naikkan skor CV minimal 10 poin dari skor awal. PENTING: JANGAN berhalusinasi. Hanya gunakan informasi yang ada di CV asli atau yang user berikan di INPUT MANUAL. Jangan tambah sertifikasi, pengalaman, atau pendidikan palsu. BOLEH rewrite struktur, tambah section heading, bullet points, dan variasi keyword ATS yang relevan. PENTING: Output HANYA plain text. DILARANG pakai garis pembatas (---, ***, ===, ───, ═══), markdown (**bold**, ##), atau emoji. Pisahkan section dengan baris kosong + heading KAPITAL. Gunakan bullet point “•” untuk list.' },
+    { role: 'system', content: DATE_CONTEXT + ' Kamu adalah asisten HR specialist senior yang membantu pelamar memperbaiki CV agar lebih kompetitif. Selalu output dalam bahasa Indonesia formal. Target: naikkan skor CV minimal 10 poin dari skor awal. PENTING: JANGAN berhalusinasi. Hanya gunakan informasi yang ada di CV asli atau yang user berikan di INPUT MANUAL. Jangan tambah sertifikasi, pengalaman, atau pendidikan palsu. BOLEH rewrite struktur, tambah section heading, dan variasi keyword ATS yang relevan. PENTING: Output HANYA plain text. DILARANG pakai garis pembatas (---, ***, ===, ───, ═══), markdown (**bold**, ##), atau emoji. Pisahkan section dengan baris kosong + heading KAPITAL. DILARANG memakai penanda daftar apa pun (•, -, *, ·) di awal baris: tulis setiap pencapaian sebagai baris tersendiri tanpa simbol.' },
     { role: 'user', content: buildImprovePrompt(cvText, jobDesc, reviewContext) }
   ];
 
@@ -433,6 +445,9 @@ function callImproveApi(cvText, jobDesc, reviewContext) {
   // Buang baris kontak karangan/placeholder (LinkedIn, portfolio, dll) yang tidak
   // benar-benar ada di CV asli atau input manual user.
   content = stripInventedContactLines(content).text;
+
+  // Buang penanda daftar (•, -, *) supaya hasil di textarea & PDF bersih.
+  content = stripListMarkers(content);
 
   return content.trim();
 }
@@ -559,6 +574,31 @@ var PHONE_RE = /(\+62|\(62\)|\b62|\b0)8[0-9][0-9\s.\-]{5,}/;
 var LINKEDIN_RE = /linkedin\.com\//i;
 var BULLET_RE = /^\s*[•·▪◦*\-–—]\s+\S/;
 var METRIC_RE = /\d+(?:[.,]\d+)?\s*(?:%|persen|rb|ribu|k\b|jt|juta|m\b|orang|user|pengguna|klien|client|tim|team|proyek|project|req|request|bulan|tahun|year|month|x\b)/i;
+// Baris isi (bukan heading, bukan kontak) yang cukup pendek untuk dianggap satu
+// butir daftar. Sejak v21 penanda "•" dibuang dari hasil improve, jadi struktur
+// dinilai dari bentuk barisnya, bukan dari keberadaan glyph bullet.
+var ENTRY_LINE_MAX = 120;
+var HEADING_LINE_RE = /^[A-Z][A-Z0-9 .&/()'’\-]{2,48}$/;
+
+function isCvHeadingLine(line) {
+  var t = String(line || '').trim();
+  if (!t || t.length > 48) return false;
+  if (!HEADING_LINE_RE.test(t)) return false;
+  return /[A-Z]{3,}/.test(t);
+}
+
+function countEntryLines(lines) {
+  var count = 0;
+  for (var i = 0; i < lines.length; i++) {
+    var t = lines[i].trim();
+    if (!t) continue;
+    if (isCvHeadingLine(t)) continue;
+    if (CONTACT_LINE_RE.test(t)) continue;
+    if (t.length > ENTRY_LINE_MAX) continue;
+    count++;
+  }
+  return count;
+}
 
 function countKeywordHits(text, jobDesc) {
   var tokens = String(jobDesc || '').toLowerCase().match(/[a-z][a-z0-9+#.\-]{2,}/g) || [];
@@ -601,10 +641,15 @@ function scoreCvMechanical(cvText, jobDesc, pages) {
   for (var i = 0; i < lines.length; i++) {
     if (BULLET_RE.test(lines[i])) bullets++;
   }
+  // Baris isi dihitung terpisah: hasil improve sudah tanpa glyph bullet, jadi
+  // butir daftar dikenali dari bentuknya (bukan heading, bukan kontak, tidak
+  // terlalu panjang). `entries` = maksimum dari keduanya supaya CV berbullet
+  // (input lama) dan CV tanpa bullet dapat penilaian yang sama.
+  var entries = Math.max(bullets, countEntryLines(lines));
   var structure;
-  if (sections >= 4 && bullets >= 5) structure = 20;
+  if (sections >= 4 && entries >= 5) structure = 20;
   else if (sections >= 3) structure = 16;
-  else if (sections >= 1 || bullets >= 3) structure = 10;
+  else if (sections >= 1 || entries >= 3) structure = 10;
   else structure = 5;
 
   // --- achievements (12/18/24/30) ---
@@ -660,6 +705,7 @@ function scoreCvMechanical(cvText, jobDesc, pages) {
       hasLinkedin: hasLinkedin,
       sections: sections,
       bullets: bullets,
+      entries: entries,
       metrics: metrics,
       atsMatched: kw.matched,
       atsTotal: kw.total,
@@ -877,6 +923,9 @@ if (typeof module !== 'undefined') {
     normalizeReview,
     stripForeignScript,
     stripInventedContactLines,
+    stripListMarkers,
+    countEntryLines,
+    isCvHeadingLine,
     scoreCvMechanical,
     applyMechanicalScore,
     countKeywordHits,
