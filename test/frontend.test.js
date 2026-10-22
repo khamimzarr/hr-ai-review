@@ -39,9 +39,10 @@ test('style.css flat & shadowless (no box-shadow)', () => {
 
 const APP_JS = fs.readFileSync(path.join(VERCEL, 'app.js'), 'utf8');
 
-test('app.js punya API_PROXY lokal (bukan GAS langsung)', () => {
-  assert.ok(APP_JS.includes('API_PROXY'), 'API_PROXY missing');
-  assert.ok(APP_JS.includes('/api/gas-proxy'), 'proxy endpoint missing');
+test('app.js pakai endpoint /api/review & /api/improve (bukan GAS langsung)', () => {
+  assert.ok(APP_JS.includes('/api/review'), 'endpoint review missing');
+  assert.ok(APP_JS.includes('/api/improve'), 'endpoint improve missing');
+  assert.ok(!APP_JS.includes('/api/gas-proxy'), 'proxy GAS lama masih dipakai');
   assert.ok(!APP_JS.includes('script.google.com'), 'should not call GAS directly');
 });
 

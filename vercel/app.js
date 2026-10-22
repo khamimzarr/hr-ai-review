@@ -1,6 +1,7 @@
 // HR AI REVIEW — Frontend logic
 // API call via Vercel serverless proxy (avoid CORS issue with GAS)
-const API_PROXY = '/api/gas-proxy';
+const API_REVIEW = '/api/review';
+const API_IMPROVE = '/api/improve';
 
 const HISTORY_KEY = 'hr_ai_review_history';
 const HISTORY_MAX = 20;
@@ -122,7 +123,7 @@ async function extractTextFromPdf(file) {
 
 // ---------- API call ----------
 async function callReviewApi(cvText, jobDesc) {
-  const res = await fetch(API_PROXY, {
+  const res = await fetch(API_REVIEW, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'review', cvText: cvText, jobDesc: jobDesc, pages: currentFilePages })
@@ -506,11 +507,10 @@ async function runImprove() {
     const extraMissing = els.extraMissing.value.trim();
     // Kirim FULL review context (score + suggestions + weaknesses + missing + atsKeywords + extraMissing)
     // agar improve prompt punya konteks lengkap untuk menaikkan skor
-    const res = await fetch(API_PROXY, {
+    const res = await fetch(API_IMPROVE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'improve',
         cvText: currentCvText,
         jobDesc: currentJobDesc,
         score: currentReview.score || 0,
@@ -602,7 +602,7 @@ async function runRescore() {
   try {
     aiBusy('Menilai ulang CV', 'Membandingkan dengan saran sebelumnya...');
     // Kirim appliedSuggestions sebagai konteks rescore
-    const res = await fetch(API_PROXY, {
+    const res = await fetch(API_REVIEW, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
