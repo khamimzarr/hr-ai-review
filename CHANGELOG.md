@@ -4,6 +4,31 @@
 
 ---
 
+## [v20 — Rombak UI: palet MindMarket, skor angka besar, karakter AI] — 2026-10-22
+
+### Change
+- **Palet baru** diukur per piksel dari referensi: krem `#f4f2e6`, hijau `#9cd270`, kuning `#f2e24e`, ink `#1f1f1f`. Semua pasangan teks/latar dicek WCAG: teks sekunder 4.64–5.41:1, blok warna vs ink 9.3–12.4:1.
+- **Hierarki warna**: satu blok pekat per layar (kartu skor). Kartu pendamping pakai tint 22% + border kiri 3px. Kuning eksklusif untuk CTA supaya tidak bersaing dengan skor.
+- **Skor jadi tipografi 152px** weight 400, menggantikan ring SVG 140px. Ring disembunyikan (bukan dihapus) karena `app.js` masih menulis ke sana.
+- **Kecocokan peran jadi pill terpisah** — di luar penjumlahan skor, karena bukan bagian dari total.
+- **Hero 2 kolom**: dropzone terlihat tanpa scroll.
+- **Tombol model label + panah bulat**, radius 10px (dari pill 36px).
+- **Karakter AI membaca CV** sebagai penanda proses: SVG inline, badan bergoyang, mata berkedip, kaca pembesar bergerak mengikuti baris, bar sorot turun menelusuri dokumen. Menggantikan toast yang menutupi konten dan hilang sebelum proses selesai. Dipakai di review, improve, dan skor ulang.
+- **Dialog konfirmasi sendiri** menggantikan `confirm()` bawaan browser.
+- **Teks dipadatkan**: hero sub, verdict, label field, bullet kartu, footer. Tinggi halaman mobile turun ~7%.
+
+### Perbaikan yang ikut terbawa
+- Nama file hasil memakai nama asli upload dan tidak hilang saat skor ulang (dulu `renderReview` menebak dari `selectedFile` yang bisa null).
+- Item riwayat tidak lagi pakai `.reveal` yang tak pernah di-observe ulang — sebelumnya item baru bisa invisible.
+- `nav-progress` pindah ke dalam kartu nav; sebelumnya tampil sebagai garis hitam nyasar.
+- Label tombol disabled "Pilih file dulu" supaya jelas kenapa tidak bisa diklik.
+
+### Deploy notes
+- `sw.js` cache `v3` → `v6` (tiga kali bump dalam satu sesi).
+- Tes: **127 pass** (dari 113). Tes lama yang mengunci animasi hero melayang, shine, marching-ants, dan step pulse diganti karena elemennya memang dihapus.
+
+---
+
 ## [v17 — Skor deterministik + pindah ke agnes-3.0-flash + retry] — 2026-10-21
 
 ### Problem (semua terukur, bukan dugaan)
