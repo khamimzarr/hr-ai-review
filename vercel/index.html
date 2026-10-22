@@ -73,6 +73,7 @@
           <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 14 4-4-4-4"/></svg>
         </span>
       </button>
+      <div class="ai-slot" id="ai-slot-review"></div>
       <p class="form-error" id="form-error" hidden></p>
     </section>
   </header>
@@ -175,6 +176,8 @@
           </button>
         </div>
 
+        <div class="ai-slot" id="ai-slot-improve"></div>
+
         <div id="improve-result" class="improve-result" hidden>
           <div class="improve-actions">
             <button class="btn btn-sm" id="improve-download">Unduh (.pdf)</button>
@@ -184,6 +187,7 @@
           <p class="improve-edit-hint">Bisa disunting sebelum diunduh.</p>
 
           <div class="rescore-zone">
+            <div class="ai-slot" id="ai-slot-rescore"></div>
             <div id="score-delta" class="score-delta" hidden></div>
             <button class="btn btn-quiet" id="rescore-btn">Skor ulang</button>
           </div>
@@ -215,9 +219,61 @@
   </footer>
 
   <div class="toast" id="toast" hidden role="status" aria-live="polite">
-    <span class="toast-ico" id="toast-ico" aria-hidden="true"></span>
     <span class="toast-text" id="toast-text"></span>
-    <span class="toast-bar" id="toast-bar" hidden><i></i></span>
+  </div>
+
+  <!-- AI busy: karakter membaca CV dengan kaca pembesar -->
+  <div class="ai-busy" id="ai-busy" hidden role="status" aria-live="polite">
+    <svg class="ai-busy-svg" viewBox="0 0 240 152" aria-hidden="true" focusable="false">
+      <ellipse class="ld-ground" cx="120" cy="140" rx="82" ry="5"/>
+      <g class="ld-doc">
+        <rect class="ld-paper" x="112" y="28" width="86" height="98" rx="9"/>
+        <g class="ld-lines">
+          <rect class="ld-line ld-line-title" x="124" y="42" width="44" height="6" rx="3"/>
+          <rect class="ld-line" x="124" y="57" width="60" height="4" rx="2"/>
+          <rect class="ld-line" x="124" y="69" width="52" height="4" rx="2"/>
+          <rect class="ld-line" x="124" y="81" width="62" height="4" rx="2"/>
+          <rect class="ld-line" x="124" y="93" width="40" height="4" rx="2"/>
+          <rect class="ld-line" x="124" y="105" width="56" height="4" rx="2"/>
+        </g>
+        <clipPath id="ld-clip"><rect x="112" y="28" width="86" height="98" rx="9"/></clipPath>
+        <rect class="ld-scan" x="112" y="28" width="86" height="20" clip-path="url(#ld-clip)"/>
+      </g>
+      <g class="ld-guy">
+        <path class="ld-body" d="M42 132v-26c0-12 9-18 19-18s19 6 19 18v26z"/>
+        <circle class="ld-head" cx="61" cy="66" r="18"/>
+        <g class="ld-eyes">
+          <circle cx="54" cy="64" r="2.4"/>
+          <circle cx="68" cy="64" r="2.4"/>
+        </g>
+        <path class="ld-smile" d="M55 74q6 5 12 0"/>
+        <path class="ld-arm" d="M74 106 Q90 104 100 100"/>
+      </g>
+      <g class="ld-mag">
+        <line class="ld-handle" x1="124" y1="85" x2="100" y2="100"/>
+        <circle class="ld-glass" cx="136" cy="72" r="17"/>
+        <g class="ld-mag-zoom" clip-path="url(#ld-glass-clip)">
+          <rect class="ld-line" x="124" y="60" width="26" height="6" rx="3"/>
+          <rect class="ld-line" x="124" y="71" width="18" height="6" rx="3"/>
+          <rect class="ld-line" x="124" y="82" width="23" height="6" rx="3"/>
+        </g>
+        <clipPath id="ld-glass-clip">
+          <circle cx="136" cy="72" r="14"/>
+        </clipPath>
+        <circle class="ld-glass-in" cx="136" cy="72" r="14"/>
+        <path class="ld-glass-glare" d="M128 64q4-4 9-4"/>
+        <circle class="ld-hand" cx="100" cy="100" r="6.2"/>
+      </g>
+      <g class="ld-sparks">
+        <circle class="ld-spark" cx="164" cy="44" r="2.6"/>
+        <circle class="ld-spark" cx="177" cy="60" r="2"/>
+        <circle class="ld-spark" cx="152" cy="33" r="1.8"/>
+      </g>
+    </svg>
+    <div class="ai-busy-body">
+      <p class="ai-busy-title" id="ai-busy-title">AI sedang membaca CV</p>
+      <p class="ai-busy-step" id="ai-busy-step">Mengekstrak teks...</p>
+    </div>
   </div>
 
   <dialog class="dlg" id="confirm-dlg">

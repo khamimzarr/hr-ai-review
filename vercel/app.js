@@ -145,13 +145,13 @@ async function runReview() {
   hideError();
 
   try {
-    showToast('Membaca CV...', { busy: true });
+    aiBusy('Membaca CV', 'Mengekstrak teks...');
     const cvText = await extractTextFromPdf(selectedFile);
     if (!cvText || cvText.length < CV_MIN_CHARS) {
       throw new Error('Teks CV tidak terbaca. CV mungkin berupa scan/foto. Gunakan PDF hasil export (bukan hasil scan/foto).');
     }
 
-    showToast('AI sedang mereview CV...', { busy: true });
+    aiBusyStep('Menilai struktur dan kata kunci...');
     const jobDesc = els.positionInput.value + '\n' + els.jobdescInput.value;
     const data = await callReviewApi(cvText, jobDesc.trim());
 
@@ -170,7 +170,7 @@ async function runReview() {
     showToast('Gagal: ' + err.message);
   } finally {
     setLoading(false);
-    if (els.toast.classList.contains('toast-busy')) hideToast();
+    aiIdle();
   }
 }
 
@@ -501,7 +501,7 @@ async function runImprove() {
   els.improveSpinner.hidden = false;
 
   try {
-    showToast('AI sedang memperbaiki CV...', { busy: true });
+    aiBusy('Memperbaiki CV', 'Menyusun ulang kalimat...');
     // Baca input manual user (extraMissing)
     const extraMissing = els.extraMissing.value.trim();
     // Kirim FULL review context (score + suggestions + weaknesses + missing + atsKeywords + extraMissing)
@@ -540,7 +540,7 @@ async function runImprove() {
     showError('Gagal memperbaiki CV: ' + err.message);
     showToast('Gagal: ' + err.message);
   } finally {
-    if (els.toast.classList.contains('toast-busy')) hideToast();
+    aiIdle();
     els.improveBtn.disabled = false;
     els.improveBtnLabel.textContent = 'Perbaiki CV';
     els.improveSpinner.hidden = true;
@@ -588,7 +588,7 @@ async function runRescore() {
   }
 
   try {
-    showToast('Menilai ulang CV...', { busy: true });
+    aiBusy('Menilai ulang CV', 'Membandingkan dengan saran sebelumnya...');
     // Kirim appliedSuggestions sebagai konteks rescore
     const res = await fetch(API_PROXY, {
       method: 'POST',
@@ -650,7 +650,7 @@ async function runRescore() {
   } catch (err) {
     showToast('Gagal: ' + err.message);
   } finally {
-    if (els.toast.classList.contains('toast-busy')) hideToast();
+    aiIdle();
     els.rescoreBtn.disabled = false;
     els.rescoreBtn.textContent = 'Skor ulang';
   }
@@ -951,29 +951,38 @@ function hideError() {
 
 let toastTimer = null;
 
-// showToast(msg)          -> toast biasa, hilang 3.2s
-// showToast(msg, {busy})  -> toast proses: spinner + bar berjalan, tidak auto-hilang
-//                            sampai dipanggil hideToast()
-function showToast(msg, opts) {
-  const busy = !!(opts && opts.busy);
+// Toast singkat untuk hasil aksi. Proses panjang pakai aiBusy().
+function showToast(msg) {
   const textEl = $('toast-text');
-  const barEl = $('toast-bar');
   if (textEl) textEl.textContent = msg; else els.toast.textContent = msg;
-  els.toast.classList.toggle('toast-busy', busy);
-  if (barEl) barEl.hidden = !busy;
   els.toast.hidden = false;
   clearTimeout(toastTimer);
-  if (!busy) {
-    toastTimer = setTimeout(hideToast, 3200);
-  }
+  toastTimer = setTimeout(hideToast, 3200);
 }
 
 function hideToast() {
   clearTimeout(toastTimer);
   els.toast.hidden = true;
-  els.toast.classList.remove('toast-busy');
-  const barEl = $('toast-bar');
-  if (barEl) barEl.hidden = true;
+}
+
+// Karakter AI membaca CV. Ditampilkan selama proses berjalan,
+// dengan teks langkah yang berubah mengikuti tahap.
+function aiBusy(title, step) {
+  const box = $('ai-busy');
+  if (!box) return;
+  $('ai-busy-title').textContent = title;
+  $('ai-busy-step').textContent = step || '';
+  box.hidden = false;
+}
+
+function aiBusyStep(step) {
+  const el = $('ai-busy-step');
+  if (el) el.textContent = step;
+}
+
+function aiIdle() {
+  const box = $('ai-busy');
+  if (box) box.hidden = true;
 }
 
 // Dialog konfirmasi sendiri, menggantikan confirm() bawaan browser.
