@@ -11,7 +11,7 @@ const MOCK_CV_TEXT = fs.readFileSync(
   'utf8'
 ).trim();
 
-const PROXY_URL = process.env.PROXY_URL || 'https://hr-ai-review-nine.vercel.app/api/gas-proxy';
+const PROXY_URL = process.env.PROXY_URL || 'https://hr-ai-review-nine.vercel.app/api/review';
 
 test('E2E: proxy menerima CV valid dan return review', async () => {
   if (MOCK_CV_TEXT.length < 100) {
@@ -21,9 +21,8 @@ test('E2E: proxy menerima CV valid dan return review', async () => {
 
   const res = await fetch(PROXY_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Origin: 'https://hr-ai-review-nine.vercel.app' },
     body: JSON.stringify({
-      action: 'review',
       cvText: MOCK_CV_TEXT,
       jobDesc: 'Frontend Developer dengan pengalaman React dan TypeScript'
     })
@@ -50,26 +49,15 @@ test('E2E: proxy menerima CV valid dan return review', async () => {
 test('E2E: proxy menolak CV terlalu pendek', async () => {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Origin: 'https://hr-ai-review-nine.vercel.app' },
     body: JSON.stringify({
-      action: 'review',
       cvText: 'pendek',
       jobDesc: ''
     })
   });
   const data = await res.json();
   assert.strictEqual(data.ok, false);
-  assert.strictEqual(data.status, 400);
-});
-
-test('E2E: proxy menolak action tidak dikenal', async () => {
-  const res = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'hack', cvText: 'test' })
-  });
-  const data = await res.json();
-  assert.strictEqual(data.ok, false);
+  assert.strictEqual(res.status, 400);
 });
 
 test('E2E: proxy menolak method GET', async () => {

@@ -7,7 +7,7 @@
 // hasilnya Promise dan semua field jadi undefined tanpa error yang jelas.
 'use strict';
 
-const Code = require('../../gas/Code.gs');
+const Code = require('./Code-legacy.gs.js');
 
 // ---------- Konfigurasi ----------
 const REVIEW_TEMPERATURE = Code.REVIEW_TEMPERATURE; // 0.2

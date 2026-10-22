@@ -4,6 +4,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const ROOT = path.join(__dirname, '..');
 const VERCEL = path.join(__dirname, '..', 'vercel');
 const html = fs.readFileSync(path.join(VERCEL, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(VERCEL, 'style.css'), 'utf8');
@@ -65,12 +66,9 @@ test('index.html tidak ada trustline palsu (4.4/5)', () => {
   assert.ok(!html.includes('Skor rata-rata'), 'trustline palsu masih ada');
 });
 
-test('install-properties.gs.example tidak hardcode API key nyata', () => {
-  const install = fs.readFileSync(path.join(__dirname, '..', 'gas', 'install-properties.gs.example'), 'utf8');
-  assert.ok(!install.includes('sk-nry-'), 'API key provider lama terhardcode!');
-  assert.ok(!install.includes('sk-'), 'API key terhardcode di example!');
-  assert.ok(!install.includes('AQ.'), 'API key Gemini terhardcode!');
-  assert.ok(install.includes('YOUR_AGNES_API_KEY'), 'placeholder tidak ada');
+// ---------- Backend Node murni (migrasi, v22): gas/ sudah dipensiunkan ----------
+test('install-properties.gs.example sudah tidak ada (GAS dipensiunkan)', () => {
+  assert.ok(!fs.existsSync(path.join(__dirname, '..', 'gas')), 'folder gas/ masih ada');
 });
 
 test('index.html punya tombol improve', () => {
@@ -199,17 +197,13 @@ test('app.js punya scroll-reveal & score count-up', () => {
   assert.ok(APP_JS.includes('attachRipple'), 'attachRipple missing');
 });
 
-// ---------- Proxy: origin & kunci bersama (v17) ----------
-const PROXY_SRC = fs.readFileSync(path.join(VERCEL, 'api', 'gas-proxy.js'), 'utf8');
-
-test('gas-proxy meneruskan origin pemanggil ke GAS', () => {
-  assert.ok(PROXY_SRC.includes("params.set('origin'"), 'origin tidak diteruskan ke GAS');
-  assert.ok(PROXY_SRC.includes('req.headers.origin'), 'origin header tidak dibaca');
+// ---------- Backend Node murni (migrasi, v22): gas-proxy sudah dipensiunkan ----------
+test('gas-proxy sudah dihapus dari repo', () => {
+  assert.ok(!fs.existsSync(path.join(VERCEL, 'api', 'gas-proxy.js')), 'gas-proxy.js masih ada');
 });
 
-test('gas-proxy mendukung kunci bersama opsional', () => {
-  assert.ok(PROXY_SRC.includes('GAS_PROXY_SECRET'), 'env GAS_PROXY_SECRET tidak dipakai');
-  assert.ok(PROXY_SRC.includes("params.set('token'"), 'token tidak dikirim ke GAS');
+test('gas/ sudah dihapus dari repo', () => {
+  assert.ok(!fs.existsSync(path.join(ROOT, 'gas')), 'folder gas/ masih ada');
 });
 
 // ---------- Rincian skor (v17) ----------
@@ -392,22 +386,21 @@ test('hint sunting rata kiri mengikuti tepi textarea', () => {
     'hint harus text-align: left');
 });
 
-test('hasil improve membuang penanda daftar di backend dan frontend', () => {
-  const GAS = fs.readFileSync(path.join(__dirname, '..', 'gas', 'Code.gs'), 'utf8');
-  assert.ok(GAS.includes('stripListMarkers'), 'backend harus punya stripListMarkers');
-  assert.ok(GAS.includes('content = stripListMarkers(content)'), 'stripListMarkers harus dipanggil di callImproveApi');
+test('hasil improve membuang penanda daftar (legacy + frontend)', () => {
+  const LEGACY = fs.readFileSync(path.join(__dirname, '..', 'vercel', 'api', 'Code-legacy.gs.js'), 'utf8');
+  assert.ok(LEGACY.includes('stripListMarkers'), 'legacy backend harus punya stripListMarkers');
+  assert.ok(LEGACY.includes('content = stripListMarkers(content)'), 'stripListMarkers harus dipanggil di callImproveApi');
   assert.ok(APP_JS.includes('stripListMarkers'), 'frontend harus membersihkan bullet dari riwayat lama');
   assert.ok(APP_JS.includes('els.improveText.value = stripListMarkers(text)'), 'renderImprovedCv harus memakai stripListMarkers');
-  // prompt tidak boleh lagi meminta bullet "•"
-  assert.ok(!GAS.includes('Gunakan bullet point'), 'prompt masih menyuruh pakai bullet');
-  assert.ok(GAS.includes('DILARANG memakai penanda daftar'), 'prompt harus melarang penanda daftar');
+  assert.ok(!LEGACY.includes('Gunakan bullet point'), 'prompt masih menyuruh pakai bullet');
+  assert.ok(LEGACY.includes('DILARANG memakai penanda daftar'), 'prompt harus melarang penanda daftar');
 });
 
 test('skor struktur tidak bergantung pada glyph bullet', () => {
-  const GAS = fs.readFileSync(path.join(__dirname, '..', 'gas', 'Code.gs'), 'utf8');
-  assert.ok(GAS.includes('countEntryLines'), 'struktur harus dihitung dari baris isi');
-  assert.ok(GAS.includes('var entries = Math.max(bullets, countEntryLines(lines))'), 'entries harus gabungan');
-  assert.ok(GAS.includes('sections >= 4 && entries >= 5'), 'ambang struktur harus pakai entries');
+  const LEGACY = fs.readFileSync(path.join(__dirname, '..', 'vercel', 'api', 'Code-legacy.gs.js'), 'utf8');
+  assert.ok(LEGACY.includes('countEntryLines'), 'struktur harus dihitung dari baris isi');
+  assert.ok(LEGACY.includes('var entries = Math.max(bullets, countEntryLines(lines))'), 'entries harus gabungan');
+  assert.ok(LEGACY.includes('sections >= 4 && entries >= 5'), 'ambang struktur harus pakai entries');
 });
 
 test('favicon memakai palet desain baru, bukan biru lama', () => {

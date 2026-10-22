@@ -4,6 +4,34 @@
 
 ---
 
+## [v22 — Migrasi selesai: GAS dipensiunkan, backend Node murni] — 2026-10-22
+
+### Change
+
+- **Backend pindah total ke Vercel Functions**: `api/review.js` + `api/improve.js`
+  (logika bersama `api/_backend.js`). `callAi` async (fetch native + AbortSignal),
+  retry 3x + fallback agnes-2.5-flash, budget review 45s / improve 90s, maxDuration 120.
+- **Rate limiter Upstash Redis REST** (INCR+EXPIRE per jam, maks 60 req/jam, fail-open).
+- Region sin1 di `vercel.json`.
+- **GAS dipensiunkan**: hapus `gas/`, `vercel/api/gas-proxy.js`, `.clasp.json`.
+  Kode lama disimpan sebagai `vercel/api/Code-legacy.gs.js` (dipakai untuk prompt/
+  parse/skor mekanis) dan lengkap di git history.
+- Font display: Space Grotesk (hero, judul, skor) + Inter body (PR #16).
+- Frontend pakai `/api/review` & `/api/improve` (bukan gas-proxy). sw cache v9.
+
+### Test
+
+- 146/146 pass (unit backend Node 13 + frontend + routing + ai; e2e diarahkan ke
+  endpoint baru; tes yang merujuk file GAS diarahkan ke Code-legacy).
+
+### Deploy notes
+
+- Env var Vercel production: `AGNES_API_KEY`, `UPSTASH_REDIS_REST_URL`,
+  `UPSTASH_REDIS_REST_TOKEN` (semua Secret).
+- Root Directory tetap `vercel`.
+
+---
+
 ## [v21 — Hint sekali, hasil improve tanpa bullet, favicon baru, menu burger] — 2026-10-22
 
 ### Fix
