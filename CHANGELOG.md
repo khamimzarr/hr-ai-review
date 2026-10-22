@@ -16,7 +16,8 @@
 ### Deploy notes
 - `sw.js` cache `v6` → `v7`.
 - GAS deployment `@43`.
-- Tes: **133 pass** (dari 127).
+- Tes: **134 pass** (dari 127).
+- **Susulan:** burger menempel di samping brand di ponsel karena `margin-left: auto` hanya ada di `.nav-links` yang `display: none` di bawah 820px. Ditambah `margin-left: auto` ke `.burger`; jarak ke tepi kanan bar kini 20px di semua lebar layar.
 
 ---
 

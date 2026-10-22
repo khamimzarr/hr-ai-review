@@ -7,7 +7,7 @@
 - **Provider: agnes** — `agnes-3.0-flash` (primary) → `agnes-2.5-flash` (fallback) via `https://apihub.agnes-ai.com/v1`
 - Script Properties: `AGNES_API_KEY`, `AGNES_BASE_URL` (bynara sudah tidak dipakai)
 - `DATE_CONTEXT` tetap aktif di prompt review & improve
-- **133/133 test pass**
+- **134/134 test pass**
 - **UI v20**: palet krem-hijau, skor tipografi 152px, karakter AI membaca CV sebagai penanda proses
 - **v21**: hint sunting 1x rata kiri, hasil improve & PDF tanpa bullet, favicon palet baru, burger punya menu
 - `sw.js` cache **v7** — wajib bump tiap kali `index.html`/`style.css`/`app.js`/ikon berubah
