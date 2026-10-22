@@ -1,13 +1,15 @@
 # STATUS — HR AI REVIEW
 
-> Update: 2026-10-21 · Status: **v17 (agnes-3.0-flash + skor deterministik)**
+> Update: 2026-10-22 · Status: **v20 (UI rombak: palet MindMarket + karakter AI)**
 
-## ✅ State Saat Ini (v16)
+## ✅ State Saat Ini (v20)
 
 - **Provider: agnes** — `agnes-3.0-flash` (primary) → `agnes-2.5-flash` (fallback) via `https://apihub.agnes-ai.com/v1`
 - Script Properties: `AGNES_API_KEY`, `AGNES_BASE_URL` (bynara sudah tidak dipakai)
 - `DATE_CONTEXT` tetap aktif di prompt review & improve
-- **96/96 test pass**
+- **127/127 test pass**
+- **UI v20**: palet krem-hijau, skor tipografi 152px, karakter AI membaca CV sebagai penanda proses
+- `sw.js` cache **v6** — wajib bump tiap kali `index.html`/`style.css`/`app.js` berubah
 - **Skor dihitung mekanis** dari teks CV (`scoreCvMechanical`), bukan oleh model → deterministik
 - Retry 3x + backoff untuk 429/5xx, dibatasi 45s
 
