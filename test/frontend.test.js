@@ -438,3 +438,10 @@ test('burger punya menu yang bisa dibuka, bukan tombol mati', () => {
   // di desktop burger disembunyikan, jadi panel tidak boleh ikut muncul
   assert.ok(css.includes('.burger { display: grid; }'), 'burger hanya tampil di mobile');
 });
+
+test('burger menempel di tepi kanan nav, bukan di samping brand', () => {
+  // .nav-links yang punya margin-left:auto, dan elemen itu display:none di ponsel.
+  // Tanpa margin-left:auto di .burger, tidak ada yang mendorongnya ke kanan.
+  const block = (css.match(/\.burger \{[^}]*\}/) || [''])[0];
+  assert.ok(block.includes('margin-left: auto'), 'burger harus margin-left: auto: ' + block);
+});
