@@ -117,12 +117,43 @@ ul { list-style: none; }
   background: var(--green); cursor: pointer;
   display: none; place-items: center; flex: none;
 }
-.burger i { display: block; width: 15px; height: 1.5px; background: var(--ink); position: relative; }
+.burger i { display: block; width: 15px; height: 1.5px; background: var(--ink); position: relative; transition: background .18s; }
 .burger i::before, .burger i::after {
   content: ''; position: absolute; left: 0; width: 15px; height: 1.5px; background: var(--ink);
+  transition: transform .22s cubic-bezier(.34, 1.4, .64, 1), top .22s;
 }
 .burger i::before { top: -5px; }
 .burger i::after { top: 5px; }
+/* burger jadi silang saat menu terbuka */
+.burger[aria-expanded="true"] i { background: transparent; }
+.burger[aria-expanded="true"] i::before { top: 0; transform: rotate(45deg); }
+.burger[aria-expanded="true"] i::after { top: 0; transform: rotate(-45deg); }
+
+/* Menu mobile: panel di bawah bar nav, hanya dipakai saat nav-links disembunyikan */
+.nav-menu {
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 6px;
+  background: var(--white);
+  border: 1px solid var(--ink-line);
+  border-radius: var(--r-btn);
+  animation: navMenuIn .18s ease;
+}
+.nav-menu:not([hidden]) { display: flex; }
+.nav-menu a {
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 15px;
+  color: var(--ink-70);
+  transition: background .16s, color .16s;
+}
+.nav-menu a:hover, .nav-menu a:active { background: var(--cream); color: var(--ink); }
+@keyframes navMenuIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
 .nav-progress {
   position: absolute; left: 0; bottom: 0;
   height: 2px; width: 0%;
@@ -561,7 +592,7 @@ ul { list-style: none; }
   transition: border-color .18s;
 }
 .improve-text:focus { border-color: var(--ink); }
-.improve-edit-hint { font-size: 13px; color: var(--ink-55); text-align: right; }
+.improve-edit-hint { font-size: 13px; color: var(--ink-55); text-align: left; }
 .improve-note {
   margin-top: 8px; font-size: 13.5px; color: var(--ink-55);
   line-height: 1.55; border-top: 1px solid var(--ink-line); padding-top: 12px;

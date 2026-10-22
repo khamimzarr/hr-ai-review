@@ -10,7 +10,9 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="apple-touch-icon" href="/icon-192.svg">
+  <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48 64x64">
+  <link rel="icon" type="image/svg+xml" href="/icon-192.svg">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -26,8 +28,12 @@
           <a href="#upload" aria-current="page">Review</a>
           <a href="#history">Riwayat</a>
         </div>
-        <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><i></i></button>
+        <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="nav-menu"><i></i></button>
         <div class="nav-progress" id="nav-progress"></div>
+      </div>
+      <div class="nav-menu" id="nav-menu" hidden>
+        <a href="#upload">Review</a>
+        <a href="#history">Riwayat</a>
       </div>
     </div>
   </nav>
@@ -165,7 +171,6 @@
         <div class="improve-head">
           <div>
             <h3>Perbaiki CV dengan AI</h3>
-            <p>Bisa disunting sebelum diunduh.</p>
           </div>
           <button class="btn btn-yellow" id="improve-btn" hidden>
             <span class="btn-label">Perbaiki CV</span>
