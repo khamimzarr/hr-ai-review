@@ -116,6 +116,9 @@ ul { list-style: none; }
   width: 44px; height: 44px; border-radius: 50%; border: none;
   background: var(--green); cursor: pointer;
   display: none; place-items: center; flex: none;
+  /* Di ponsel .nav-links disembunyikan, jadi burger yang harus mendorong dirinya
+     ke tepi kanan. Tanpa ini burger menempel di sebelah brand. */
+  margin-left: auto;
 }
 .burger i { display: block; width: 15px; height: 1.5px; background: var(--ink); position: relative; transition: background .18s; }
 .burger i::before, .burger i::after {
