@@ -4,6 +4,22 @@
 
 ---
 
+## [v21 — Hint sekali, hasil improve tanpa bullet, favicon baru, menu burger] — 2026-10-22
+
+### Fix
+- **Hint "Bisa disunting sebelum diunduh" muncul dua kali.** Yang di kepala section improve dihapus; sisanya hanya di bawah textarea hasil, dengan `text-align` diubah `right` → `left` supaya rata tepi textarea (diukur: keduanya `left: 43px`).
+- **Hasil improve masih membawa "•".** v19 hanya membuang bullet saat render PDF. Sekarang dibuang di sumber: prompt improve melarang penanda daftar, `stripListMarkers()` membersihkan output di GAS, dan `renderImprovedCv()` membersihkan riwayat lama di localStorage.
+- **Skor struktur tidak lagi bergantung pada glyph bullet.** `countEntryLines()` menghitung butir dari bentuk baris (bukan heading, bukan kontak, ≤120 karakter) dan `entries = max(bullets, entries)`. Tanpa ini CV hasil improve turun 4 poin saat "Skor ulang" hanya karena bullet-nya hilang. Diverifikasi: teks dengan dan tanpa bullet menghasilkan `breakdown` identik.
+- **Favicon masih biru `#1a91f0` desain lama.** Diganti brand mark nav: krem `#f4f2e6`, hijau `#9cd270`, titik ink `#1f1f1f`. Ditambah `favicon.ico` (16/32/48/64), `apple-touch-icon.png` 180px, `icon-192.png`, ikon PNG di manifest, dan `<link rel="icon">` yang sebelumnya tidak ada (`/favicon.ico` dulu 404).
+- **Burger nav tidak punya handler sama sekali.** `aria-expanded` ditulis di HTML tapi tidak pernah berubah; di bawah 820px `.nav-links` disembunyikan sehingga Review/Riwayat tidak bisa diakses. Ditambah panel `#nav-menu` dengan toggle, tutup saat pilih tujuan/klik luar/Esc, dan tutup paksa saat viewport melebar. Ikon berubah jadi silang saat terbuka.
+
+### Deploy notes
+- `sw.js` cache `v6` → `v7`.
+- GAS deployment `@43`.
+- Tes: **133 pass** (dari 127).
+
+---
+
 ## [v20 — Rombak UI: palet MindMarket, skor angka besar, karakter AI] — 2026-10-22
 
 ### Change

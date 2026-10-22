@@ -1,16 +1,18 @@
 # STATUS — HR AI REVIEW
 
-> Update: 2026-10-22 · Status: **v20 (UI rombak: palet MindMarket + karakter AI)**
+> Update: 2026-10-22 · Status: **v21 (hint sekali, tanpa bullet, favicon baru, menu burger)**
 
-## ✅ State Saat Ini (v20)
+## ✅ State Saat Ini (v21)
 
 - **Provider: agnes** — `agnes-3.0-flash` (primary) → `agnes-2.5-flash` (fallback) via `https://apihub.agnes-ai.com/v1`
 - Script Properties: `AGNES_API_KEY`, `AGNES_BASE_URL` (bynara sudah tidak dipakai)
 - `DATE_CONTEXT` tetap aktif di prompt review & improve
-- **127/127 test pass**
+- **133/133 test pass**
 - **UI v20**: palet krem-hijau, skor tipografi 152px, karakter AI membaca CV sebagai penanda proses
-- `sw.js` cache **v6** — wajib bump tiap kali `index.html`/`style.css`/`app.js` berubah
+- **v21**: hint sunting 1x rata kiri, hasil improve & PDF tanpa bullet, favicon palet baru, burger punya menu
+- `sw.js` cache **v7** — wajib bump tiap kali `index.html`/`style.css`/`app.js`/ikon berubah
 - **Skor dihitung mekanis** dari teks CV (`scoreCvMechanical`), bukan oleh model → deterministik
+- Struktur dinilai dari `entries = max(bullets, countEntryLines)` — CV tanpa glyph bullet tidak dihukum
 - Retry 3x + backoff untuk 429/5xx, dibatasi 45s
 
 ## 🔑 Setup Ulang (jika ganti project)
