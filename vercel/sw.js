@@ -1,5 +1,5 @@
 // HR AI REVIEW — Service Worker (stale-while-revalidate untuk static, jangan cache API)
-const CACHE = 'hr-ai-review-v8';
+const CACHE = 'hr-ai-review-v9';
 const STATIC = ['/', '/index.html', '/style.css', '/app.js', '/pdf.min.js', '/pdf.worker.min.js', '/jspdf.umd.min.js', '/manifest.json', '/icon-192.svg', '/icon-512.svg', '/favicon.ico', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
