@@ -1,89 +1,90 @@
 # HANDOFF — HR AI REVIEW
 
-> Web app review CV dengan AI (agnes-3.0-flash).
+> Web app review CV dengan AI (agnes-3.0-flash). Backend Node murni di Vercel Functions (v22).
 
-## Setup Backend (GAS)
+## Arsitektur (sekarang)
+
+```
+Browser → /api/review, /api/improve (Vercel Functions, region sin1)
+        → agnes apihub (apihub.agnes-ai.com/v1)
+Rate limiter → Upstash Redis REST (2 cmd/request, fail-open)
+```
+
+- `vercel/api/_backend.js` — logika bersama: callAi async (retry 3x + fallback model),
+  rate limit Upstash, origin check, validasi input
+- `vercel/api/Code-legacy.gs.js` — salinan Code.gs lama (prompt, parse, skor mekanis);
+  skor komponen (kontak/struktur/metrik/ATS/panjang) dihitung di sini, bukan oleh model
+- `vercel/api/review.js`, `api/improve.js` — entry point, maxDuration 120
+- `vercel/api/_backend.js` budget: review 45s, improve 90s
+
+## Setup
 
 ```bash
 cd ~/hr-ai-review
-clasp create --type standalone --title "HR AI REVIEW API" --rootDir gas
-# ⚠️ clasp create akan overwrite appsscript.json → RESTORE isi appsscript.json
-#   dari gas/appsscript.json setelah create
-clasp push -f
-clasp deploy --description "v1"
-```
-
-Setelah deploy pertama, buka URL deployment di browser untuk authorize.
-Lalu set Script Properties (Project Settings → Script Properties atau copy `install-properties.gs.example` ke `install-properties.gs` lalu jalankan):
-
-- `AGNES_API_KEY` = API key provider `agnes` (config Hermes)
-- `AGNES_BASE_URL` = https://apihub.agnes-ai.com/v1
-
-Opsional (mengunci proxy):
-- `PROXY_SECRET` = string acak; set juga `GAS_PROXY_SECRET` di env Vercel dengan nilai sama.
-
-## Setup Frontend (Vercel)
-
-1. Ganti `API_BASE` di `vercel/app.js` (baris `const API_BASE = '...'`) dengan URL GAS deployment
-2. Deploy:
-   ```bash
-   cd vercel
-   vercel deploy --prod
-   vercel project protection disable <project> --sso
-   ```
-
-## Update
-
-```bash
-# Backend
-npm test && clasp push -f && clasp deploy --description "v17-agnes"
-
-# Frontend
+# env var Vercel production (Secret):
+#   AGNES_API_KEY              → kunci agnes apihub
+#   UPSTASH_REDIS_REST_URL     → https://xxx.upstash.io
+#   UPSTASH_REDIS_REST_TOKEN   → token REST Upstash
 cd vercel && vercel deploy --prod
 ```
 
-## Security Notes (v8)
+Penting: Root Directory project Vercel = `vercel`. Kalau diset `.`, merge ke main
+memicu build dari root dan situs jadi 404.
 
-- **Origin validation**: Backend menolak request dari domain di luar `ALLOWED_ORIGINS`. Update list di `gas/Code.gs` jika domain Vercel berubah.
+## Deploy alur tetap
+
+1. Branch baru → PR → merge ke main → Vercel deploy otomatis
+2. Kalau `index.html`/`style.css`/`app.js`/ikon berubah → **bump `CACHE` di `sw.js`**
+3. `npm test` sebelum PR (146 tes; E2E live bisa flaky — jalankan ulang filenya
+   sendirian sebelum menyimpulkan regresi)
+
+## Security Notes
+
+- **Origin validation**: request dari origin di luar `ALLOWED_ORIGINS` ditolak (403).
+  Update list di `vercel/api/_backend.js` jika domain berubah.
 - **CSP**: `vercel/vercel.json` set CSP header. Jika tambah CDN baru, update `script-src`/`style-src`.
-- **Secrets**: Jangan commit `install-properties.gs` (di-gitignore). Copy dari `.example` lalu ganti `sk-...`.
-- **appsscript.json**: `access: ANYONE_ANONYMOUS` (sesuai design: tanpa login). Origin validation + rate limit sebagai proteksi.
+- **Secrets**: hanya di env var Vercel (Secret). Jangan pernah commit kunci.
+- **Rate limit**: Upstash Redis, maks 60 req/jam, key per jam `rl:<epoch-jam>`,
+  EXPIRE 3600, fail-open kalau Redis error.
 
 ## Verifikasi
 
 ```bash
 npm test
-curl -sL "<GAS_URL>?r=health"
-curl -sI "<url>"
-curl -sI "<url>/manifest.json"
-curl -sI "<url>/sw.js"
+curl -sI https://hr-ai-review-nine.vercel.app/
+curl -sI https://hr-ai-review-nine.vercel.app/sw.js
+curl -s -X POST https://hr-ai-review-nine.vercel.app/api/review \
+  -H 'Content-Type: application/json' \
+  -H 'Origin: https://hr-ai-review-nine.vercel.app' \
+  -d '{"cvText":"pendek"}'   # harus 400 dengan pesan jelas
 ```
 
 ## Struktur Project
 
 ```
 hr-ai-review/
-├── gas/
-│   ├── Code.gs              # Backend GAS (routing + AI + security)
-│   ├── appsscript.json      # Webapp manifest
-│   └── install-properties.gs.example # Helper set API key (copy ke .gs, jangan commit)
-├── vercel/
-│   ├── index.html            # Frontend page
-│   ├── style.css             # Design system
-│   ├── app.js                # Logic (pdf extract, API, history, security)
-│   ├── manifest.json         # PWA manifest
-│   ├── sw.js                 # Service worker
-│   ├── vercel.json           # CSP + security headers
-│   ├── icon-192.svg          # PWA icon
-│   └── icon-512.svg          # PWA icon
-├── test/
-│   ├── gas-env.js            # GAS mock globals
-│   ├── mock-smoke.test.js    # Smoke test mocks
-│   ├── ai.test.js            # Test AI module
-│   ├── routing.test.js       # Test routing
-│   └── frontend.test.js      # Test frontend files
+├── vercel/                    # Root Directory di Vercel
+│   ├── api/
+│   │   ├── _backend.js        # Logika bersama (callAi async, rate limit, validasi)
+│   │   ├── Code-legacy.gs.js  # Salinan Code.gs lama (prompt, parse, skor mekanis)
+│   │   ├── review.js          # POST /api/review
+│   │   └── improve.js         # POST /api/improve
+│   ├── index.html             # Frontend page
+│   ├── style.css              # Design system (Inter + Space Grotesk)
+│   ├── app.js                 # Logic (pdf extract, API, history, security)
+│   ├── manifest.json          # PWA manifest
+│   ├── sw.js                  # Service worker (bump CACHE tiap perubahan asset)
+│   ├── vercel.json            # CSP + security headers + region sin1
+│   └── icon-*.svg, favicon
+├── test/                      # 146 tes (unit + e2e live)
 ├── package.json
-└── docs/superpowers/
-    ├── specs/2026-08-20-hr-ai-review-design.md
-    └── plans/2026-08-20-hr-ai-review.md
+└── docs/superpowers/          # Spec & plan awal
 ```
+
+## Riwayat GAS (dipensiunkan 22 Okt 2026)
+
+Backend dulu di Google Apps Script (`gas/Code.gs`, 945 baris, hanya 1,1% menyentuh
+API GAS). Dimigrasi total ke Vercel Functions (PR #15), lalu `gas/`,
+`vercel/api/gas-proxy.js`, dan `.clasp.json` dihapus (v22). Kode lengkap masih ada
+di git history (sebelum commit pensiunkan). Deployment GAS di dashboard Apps Script
+bisa diarsipkan/dihapus manual kalau mau bersih.

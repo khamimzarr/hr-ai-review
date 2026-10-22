@@ -3,15 +3,15 @@ const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const PROXY_URL = process.env.PROXY_URL || 'https://hr-ai-review-nine.vercel.app/api/gas-proxy';
+const PROXY_URL = process.env.PROXY_URL || 'https://hr-ai-review-nine.vercel.app/api/review';
 const CV_TEXT = fs.readFileSync(path.join(__dirname, 'dummy-cv-text.txt'), 'utf8').trim();
 const JOB_DESC = 'Frontend Developer dengan React, TypeScript, 3+ tahun pengalaman';
 
 test('Full E2E: review CV dummy → dapat skor & rekomendasi', async () => {
   const res = await fetch(PROXY_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'review', cvText: CV_TEXT, jobDesc: JOB_DESC })
+    headers: { 'Content-Type': 'application/json', Origin: 'https://hr-ai-review-nine.vercel.app' },
+    body: JSON.stringify({ cvText: CV_TEXT, jobDesc: JOB_DESC })
   });
   const data = await res.json();
 
@@ -42,11 +42,10 @@ test('Full E2E: review CV dummy → dapat skor & rekomendasi', async () => {
 });
 
 test('Full E2E: improve CV dummy → dapat CV yang diperbaiki', async () => {
-  const res = await fetch(PROXY_URL, {
+  const res = await fetch(process.env.PROXY_URL_IMPROVE || 'https://hr-ai-review-nine.vercel.app/api/improve', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Origin: 'https://hr-ai-review-nine.vercel.app' },
     body: JSON.stringify({
-      action: 'improve',
       cvText: CV_TEXT,
       jobDesc: JOB_DESC,
       suggestions: ['Tambahkan keyword ATS yang lebih spesifik', 'Perjelas pencapaian dengan metrik'],

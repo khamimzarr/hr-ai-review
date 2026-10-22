@@ -2,7 +2,7 @@
 require('./gas-env.js');
 const test = require('node:test');
 const assert = require('node:assert');
-const Code = require('../gas/Code.gs');
+const Code = require('../vercel/api/Code-legacy.gs.js');
 
 function parseOutput(out) {
   return JSON.parse(out.getContent());
