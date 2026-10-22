@@ -338,15 +338,26 @@ test('label nama file disimpan di state agar tidak hilang saat rescore', () => {
   assert.ok(APP_JS.includes('selectedFile = null; // label hasil harus ikut riwayat'), 'riwayat tidak reset selectedFile');
 });
 
-test('toast mendukung state proses (spinner + bar), bukan teks statis', () => {
-  assert.ok(html.includes('id="toast-text"'), 'toast-text missing');
-  assert.ok(html.includes('id="toast-bar"'), 'toast-bar missing');
-  assert.ok(APP_JS.includes('function hideToast'), 'hideToast missing');
-  assert.ok(APP_JS.includes('{ busy: true }'), 'toast proses tidak memakai busy');
-  assert.ok(css.includes('.toast-busy'), 'style toast-busy missing');
-  assert.ok(css.includes('@keyframes toastSlide'), 'bar toast missing');
-  // toast proses tidak boleh auto-hilang sebelum selesai
-  assert.ok(APP_JS.includes('if (!busy) {'), 'toast busy masih auto-hilang');
+test('proses AI memakai karakter membaca, bukan toast', () => {
+  assert.ok(html.includes('id="ai-busy"'), 'blok ai-busy missing');
+  assert.ok(html.includes('id="ai-busy-step"'), 'teks langkah ai-busy missing');
+  assert.ok(APP_JS.includes('function aiBusy'), 'aiBusy missing');
+  assert.ok(APP_JS.includes('function aiBusyStep'), 'aiBusyStep missing');
+  assert.ok(APP_JS.includes('function aiIdle'), 'aiIdle missing');
+  // toast tidak lagi dipakai untuk proses panjang
+  assert.ok(!APP_JS.includes('{ busy: true }'), 'masih ada toast busy');
+  assert.ok(!APP_JS.includes("'toast-busy'"), 'masih ada kelas toast-busy');
+});
+
+test('animasi karakter: baca CV, kaca pembesar bergerak, mata berkedip', () => {
+  for (const kf of ['@keyframes ldBob', '@keyframes ldBlink', '@keyframes ldScan', '@keyframes ldMag', '@keyframes ldSpark']) {
+    assert.ok(css.includes(kf), 'keyframes hilang: ' + kf);
+  }
+  assert.ok(html.includes('ld-mag'), 'kaca pembesar missing');
+  assert.ok(html.includes('ld-scan'), 'scan bar missing');
+  // wajib berhenti saat reduced motion
+  assert.ok(css.includes('.ld-guy, .ld-eyes, .ld-scan, .ld-mag, .ld-spark { animation: none; }'),
+    'karakter harus diam saat reduced motion');
 });
 
 test('konfirmasi memakai dialog sendiri, bukan confirm() bawaan', () => {
@@ -359,7 +370,7 @@ test('konfirmasi memakai dialog sendiri, bukan confirm() bawaan', () => {
   assert.ok(!APP_JS.includes('confirm(\'Ini akan memanggil AI'), 'masih memakai confirm() lama');
 });
 
-test('toast proses selalu ditutup di finally', () => {
-  const hides = (APP_JS.match(/if \(els\.toast\.classList\.contains\('toast-busy'\)\) hideToast\(\);/g) || []).length;
-  assert.ok(hides >= 3, 'setiap alur AI harus menutup toast di finally, dapat: ' + hides);
+test('loader karakter selalu ditutup di finally', () => {
+  const idles = (APP_JS.match(/aiIdle\(\);/g) || []).length;
+  assert.ok(idles >= 3, 'setiap alur AI harus memanggil aiIdle() di finally, dapat: ' + idles);
 });
